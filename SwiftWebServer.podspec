@@ -11,7 +11,7 @@ spec.author           = { "Tony Li" => "atom2ueki@gmail.com" }
 spec.platform         = :ios, "10.0" # add macos later if support.
 spec.swift_version    = '5.1'
 
-spec.source       = { :git => "https://github.com/atom2ueki/SwiftWebServer.git", :tag => "#{spec.version}" }
+spec.source       = { :git => "git@github:atom2ueki/SwiftWebServer.git", :tag => "#{spec.version}" }
 
 spec.framework = 'CoreFoundation', 'Foundation'
 

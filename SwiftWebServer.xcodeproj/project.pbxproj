@@ -10,6 +10,11 @@
 		EC4762DE244F75A300381BC4 /* SwiftWebServer.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EC4762D4244F75A300381BC4 /* SwiftWebServer.framework */; };
 		EC4762E3244F75A300381BC4 /* SwiftWebServerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC4762E2244F75A300381BC4 /* SwiftWebServerTests.swift */; };
 		EC4762E5244F75A300381BC4 /* SwiftWebServer.h in Headers */ = {isa = PBXBuildFile; fileRef = EC4762D7244F75A300381BC4 /* SwiftWebServer.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		EC4762EF244F768D00381BC4 /* SwiftWebServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC4762EE244F768D00381BC4 /* SwiftWebServer.swift */; };
+		EC4762F1244F76A200381BC4 /* Connection.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC4762F0244F76A200381BC4 /* Connection.swift */; };
+		EC4762F3244F76B200381BC4 /* Response.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC4762F2244F76B200381BC4 /* Response.swift */; };
+		EC4762F6244F76C700381BC4 /* Request.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC4762F5244F76C700381BC4 /* Request.swift */; };
+		EC4762F8244F76DC00381BC4 /* Route.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC4762F7244F76DC00381BC4 /* Route.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -29,6 +34,14 @@
 		EC4762DD244F75A300381BC4 /* SwiftWebServerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SwiftWebServerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		EC4762E2244F75A300381BC4 /* SwiftWebServerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftWebServerTests.swift; sourceTree = "<group>"; };
 		EC4762E4244F75A300381BC4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		EC4762EE244F768D00381BC4 /* SwiftWebServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftWebServer.swift; sourceTree = "<group>"; };
+		EC4762F0244F76A200381BC4 /* Connection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Connection.swift; sourceTree = "<group>"; };
+		EC4762F2244F76B200381BC4 /* Response.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Response.swift; sourceTree = "<group>"; };
+		EC4762F5244F76C700381BC4 /* Request.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Request.swift; sourceTree = "<group>"; };
+		EC4762F7244F76DC00381BC4 /* Route.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Route.swift; sourceTree = "<group>"; };
+		EC4762F9244F788800381BC4 /* SwiftWebServer.podspec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = SwiftWebServer.podspec; sourceTree = "<group>"; };
+		EC4762FB244F790C00381BC4 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		EC4762FC244F793300381BC4 /* CHANGELOG.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CHANGELOG.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -53,6 +66,9 @@
 		EC4762CA244F75A300381BC4 = {
 			isa = PBXGroup;
 			children = (
+				EC4762FB244F790C00381BC4 /* README.md */,
+				EC4762FC244F793300381BC4 /* CHANGELOG.md */,
+				EC4762F9244F788800381BC4 /* SwiftWebServer.podspec */,
 				EC4762D6244F75A300381BC4 /* SwiftWebServer */,
 				EC4762E1244F75A300381BC4 /* SwiftWebServerTests */,
 				EC4762D5244F75A300381BC4 /* Products */,
@@ -71,7 +87,10 @@
 		EC4762D6244F75A300381BC4 /* SwiftWebServer */ = {
 			isa = PBXGroup;
 			children = (
+				EC4762F4244F76BC00381BC4 /* Models */,
 				EC4762D7244F75A300381BC4 /* SwiftWebServer.h */,
+				EC4762EE244F768D00381BC4 /* SwiftWebServer.swift */,
+				EC4762F0244F76A200381BC4 /* Connection.swift */,
 				EC4762D8244F75A300381BC4 /* Info.plist */,
 			);
 			path = SwiftWebServer;
@@ -84,6 +103,16 @@
 				EC4762E4244F75A300381BC4 /* Info.plist */,
 			);
 			path = SwiftWebServerTests;
+			sourceTree = "<group>";
+		};
+		EC4762F4244F76BC00381BC4 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				EC4762F5244F76C700381BC4 /* Request.swift */,
+				EC4762F2244F76B200381BC4 /* Response.swift */,
+				EC4762F7244F76DC00381BC4 /* Route.swift */,
+			);
+			path = Models;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -148,6 +177,7 @@
 				TargetAttributes = {
 					EC4762D3244F75A300381BC4 = {
 						CreatedOnToolsVersion = 11.3.1;
+						LastSwiftMigration = 1130;
 					};
 					EC4762DC244F75A300381BC4 = {
 						CreatedOnToolsVersion = 11.3.1;
@@ -195,6 +225,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EC4762EF244F768D00381BC4 /* SwiftWebServer.swift in Sources */,
+				EC4762F6244F76C700381BC4 /* Request.swift in Sources */,
+				EC4762F3244F76B200381BC4 /* Response.swift in Sources */,
+				EC4762F8244F76DC00381BC4 /* Route.swift in Sources */,
+				EC4762F1244F76A200381BC4 /* Connection.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -340,6 +375,7 @@
 		EC4762E9244F75A300381BC4 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				DEFINES_MODULE = YES;
 				DEVELOPMENT_TEAM = 57L894N6XE;
@@ -348,22 +384,29 @@
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				INFOPLIST_FILE = SwiftWebServer/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 10.10;
 				PRODUCT_BUNDLE_IDENTIFIER = com.atom2ueki.SwiftWebServer;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos watchsimulator appletvsimulator watchos appletvos macosx";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = "1,2,3,4";
+				TVOS_DEPLOYMENT_TARGET = 10.0;
+				WATCHOS_DEPLOYMENT_TARGET = 4.0;
 			};
 			name = Debug;
 		};
 		EC4762EA244F75A300381BC4 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				DEFINES_MODULE = YES;
 				DEVELOPMENT_TEAM = 57L894N6XE;
@@ -372,22 +415,28 @@
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				INFOPLIST_FILE = SwiftWebServer/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 10.10;
 				PRODUCT_BUNDLE_IDENTIFIER = com.atom2ueki.SwiftWebServer;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos watchsimulator appletvsimulator watchos appletvos macosx";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = "1,2,3,4";
+				TVOS_DEPLOYMENT_TARGET = 10.0;
+				WATCHOS_DEPLOYMENT_TARGET = 4.0;
 			};
 			name = Release;
 		};
 		EC4762EC244F75A300381BC4 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 57L894N6XE;
 				INFOPLIST_FILE = SwiftWebServerTests/Info.plist;
@@ -406,6 +455,7 @@
 		EC4762ED244F75A300381BC4 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 57L894N6XE;
 				INFOPLIST_FILE = SwiftWebServerTests/Info.plist;

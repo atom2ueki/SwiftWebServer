@@ -12,8 +12,8 @@ import CoreFoundation
 final public class SwiftWebServer
 {
     // completion arrays
-    typealias routeHandler = (_ res: Connection) -> Void
-    var routeHandlers: [String: routeHandler]?
+    typealias RouteHandler = (_ res: Connection) -> Void
+    var routeHandlers: [String: RouteHandler]?
     
     // store connections
     static var connections = [CFData: Connection]()
@@ -25,7 +25,7 @@ final public class SwiftWebServer
     
     public init()
     {
-        routeHandlers = [String: routeHandler]()
+        routeHandlers = [String: RouteHandler]()
     }
     
     private let handleConnect: CFSocketCallBack = { socket, callbackType, address, data, info in
@@ -192,7 +192,7 @@ final public class SwiftWebServer
 // TODO: use factor pattern to handle CURD operations.
 extension SwiftWebServer
 {
-    public func get(_ path: String, completion: @escaping (_ res: Connection) -> Void)
+    public func get(_ path: String, completion: @escaping (_ req: String, _ res: Connection) -> Void)
     {
         // req is request object.
         let key = String(format: "%@ %@", "GET", path)

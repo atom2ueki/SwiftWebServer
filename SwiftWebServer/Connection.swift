@@ -185,7 +185,7 @@ public class Connection: NSObject {
 
 extension Connection
 {
-    public func send(content: String, code: Int = 200)
+    public func send(content: String? = nil, code: Int = 200)
     {
         let payload = preparePayload(contentType: "text/html", content: content, code: code)
         

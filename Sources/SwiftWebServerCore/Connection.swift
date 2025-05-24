@@ -73,33 +73,6 @@ public class Connection: NSObject {
         }
     }
     
-    private func preparePayload(contentType:String = "text/html", content:String? = nil, code:Int = 200) -> String
-    {
-        if code == 404
-        {
-            let content = """
-            <html><body><h1>Can't find the page, 404!</h1><img src="https://media.giphy.com/media/WQOIEQRgiK722l3PQT/giphy.gif" /></body></html>
-            """
-            
-            let resHeaders = String(format: "HTTP/1.1 %d OK\nContent-Length: %d\nContent-Type: %@; encoding=utf8\nConnection: Closed", code, content.count, contentType)
-            
-            let payload = String(format: "%@\n\n%@", resHeaders, content)
-            
-            return payload
-        }else
-        {
-            if let content = content
-            {
-                let resHeaders = String(format: "HTTP/1.1 %d OK\nContent-Length: %d\nContent-Type: text/html; encoding=utf8\nConnection: Closed", code, content.count)
-                
-                let payload = String(format: "%@\n\n%@", resHeaders, content)
-                
-                return payload
-            }
-        }
-        return ""
-    }
-    
     private func hasBytesAvailable()
     {
         self.queue.async(flags: .barrier) {
@@ -147,6 +120,7 @@ public class Connection: NSObject {
                     print("render page")
                     #endif
                     let request = Request(inputData: self.inputData)
+                    let response = Response(self.outputStream)
 
                     if let routeHandlers = self.server?.routeHandlers, routeHandlers.count > 0
                     {
@@ -160,13 +134,13 @@ public class Connection: NSObject {
                             if method == request.method && path == request.path
                             {
                                 found = true
-                                routeHanlder.value(self)
+                                routeHanlder.value(request, response)
                             }
                         }
                         
                         if !found
                         {
-                            self.send(content: "", code: 404)
+                            response.status(404).send("") // Use Response object to send 404
                         }
                         
                     }else
@@ -178,43 +152,6 @@ public class Connection: NSObject {
                     self.isSpaceAvailable = false
                     return
                 }
-            }
-        }
-    }
-}
-
-extension Connection
-{
-    public func send(content: String? = nil, code: Int = 200)
-    {
-        let payload = preparePayload(contentType: "text/html", content: content, code: code)
-        
-        if let echoData = payload.data(using: .utf8)
-        {
-            if let sentData = echoData.withUnsafeBytes({ pointer in
-                return pointer.baseAddress?.bindMemory(to: UInt8.self, capacity: 1)
-            }) {
-                self.outputStream.write(sentData, maxLength: echoData.count)
-                #if DEBUG
-                print("sent")
-                #endif
-            }
-        }
-    }
-    
-    public func json(content: String, code: Int = 200)
-    {
-        let payload = preparePayload(contentType: "application/json", content: content, code: code)
-        
-        if let echoData = payload.data(using: .utf8)
-        {
-            if let sentData = echoData.withUnsafeBytes({ pointer in
-                return pointer.baseAddress?.bindMemory(to: UInt8.self, capacity: 1)
-            }) {
-                self.outputStream.write(sentData, maxLength: echoData.count)
-                #if DEBUG
-                print("sent")
-                #endif
             }
         }
     }

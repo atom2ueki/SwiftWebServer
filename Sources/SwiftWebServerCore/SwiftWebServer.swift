@@ -12,7 +12,7 @@ import CoreFoundation
 final public class SwiftWebServer
 {
     // completion arrays
-    typealias RouteHandler = (_ res: Connection) -> Void
+    public typealias RouteHandler = (Request, Response) -> Void
     var routeHandlers: [String: RouteHandler]?
     
     // store connections
@@ -192,7 +192,7 @@ final public class SwiftWebServer
 // TODO: use factor pattern to handle CURD operations.
 extension SwiftWebServer
 {
-    public func get(_ path: String, completion: @escaping (_ req: String, _ res: Connection) -> Void)
+    public func get(_ path: String, completion: @escaping (Request, Response) -> Void)
     {
         // req is request object.
         let key = String(format: "%@ %@", "GET", path)
@@ -201,7 +201,7 @@ extension SwiftWebServer
         self.routeHandlers?[key] = completion
     }
     
-    public func post(_ path: String, completion: @escaping (_ res: Connection) -> Void)
+    public func post(_ path: String, completion: @escaping (Request, Response) -> Void)
     {
         // req is request object.
         let key = String(format: "%@ %@", "POST", path)
@@ -210,7 +210,7 @@ extension SwiftWebServer
         self.routeHandlers?[key] = completion
     }
     
-    public func put(_ path: String, completion: @escaping (_ res: Connection) -> Void)
+    public func put(_ path: String, completion: @escaping (Request, Response) -> Void)
     {
         // req is request object.
         let key = String(format: "%@ %@", "PUT", path)
@@ -219,7 +219,7 @@ extension SwiftWebServer
         self.routeHandlers?[key] = completion
     }
     
-    public func delete(_ path: String, completion: @escaping (_ res: Connection) -> Void)
+    public func delete(_ path: String, completion: @escaping (Request, Response) -> Void)
     {
         // req is request object.
         let key = String(format: "%@ %@", "DELETE", path)

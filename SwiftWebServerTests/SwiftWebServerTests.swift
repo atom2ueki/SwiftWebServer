@@ -7,7 +7,7 @@
 //
 
 import XCTest
-@testable import SwiftWebServer
+@testable import SwiftWebServerCore
 
 class SwiftWebServerTests: XCTestCase {
 
@@ -19,16 +19,41 @@ class SwiftWebServerTests: XCTestCase {
         // Put teardown code here. This method is called after the invocation of each test method in the class.
     }
 
-    func testExample() {
-        // This is an example of a functional test case.
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
+    func testRouteRegistration() {
+        let server = SwiftWebServer()
+        let expectation = self.expectation(description: "Route handler should be called")
+        expectation.isInverted = true // We are not actually calling it in this unit test
+
+        server.get("/test") { req, res in
+            // In a real E2E test, we'd send a response and verify it.
+            // For this unit test, merely reaching here if called would be enough,
+            // but we are testing registration, not invocation.
+            XCTFail("Handler should not be directly invoked in this test setup")
+            expectation.fulfill() 
+        }
+
+        // Check if the route handler is registered
+        // The key format is "METHOD PATH" e.g. "GET /test"
+        XCTAssertNotNil(server.routeHandlers?["GET /test"], "GET /test route should be registered")
+        
+        // Fulfill the expectation if we are not calling the handler.
+        // If the handler was meant to be called, this would be inside the handler.
+        // Since we are just testing registration, we fulfill it if the handler is registered.
+        // However, the above XCTAssertNotNil is the primary check.
+        // For an inverted expectation, we don't fulfill it if we don't expect it to be called.
+        // So, if XCTAssertNotNil passes, the registration part is fine.
+        
+        // To satisfy the expectation for an inverted one, we wait for a short timeout.
+        // If the handler (with XCTFail) is NOT called, the test passes.
+        waitForExpectations(timeout: 0.1)
     }
 
-    func testPerformanceExample() {
-        // This is an example of a performance test case.
-        self.measure {
-            // Put the code you want to measure the time of here.
+    func testPostRouteRegistration() {
+        let server = SwiftWebServer()
+        server.post("/submit") { req, res in
+            // Handler logic
         }
+        XCTAssertNotNil(server.routeHandlers?["POST /submit"], "POST /submit route should be registered")
     }
 
 }

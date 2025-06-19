@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SwiftWebServer Admin</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>📝 Blog Admin</h1>
+            <p>Manage your blog posts and content</p>
+            <div class="auth-section">
+                <div id="user-info" class="user-info">
+                    <span id="user-name">Loading...</span>
+                    <button onclick="logout()">Logout</button>
+                </div>
+            </div>
+            <nav class="blog-nav" style="margin-top: 1rem;">
+                <a href="/" class="nav-link">← Back to Blog</a>
+            </nav>
+        </header>
+
+        <nav class="nav-tabs">
+            <button class="tab-button active" onclick="showTab('posts')">Posts</button>
+            <button class="tab-button" onclick="showTab('comments')">Comments</button>
+        </nav>
+
+        <!-- Posts Tab -->
+        <div id="posts-tab" class="tab-content active">
+            <div class="section-header">
+                <h2>📝 Posts Management</h2>
+                <button class="btn btn-primary" onclick="showCreatePostForm()" id="create-post-btn">Create Post</button>
+            </div>
+            
+            <div id="create-post-form" class="form-section" style="display: none;">
+                <h3>Create New Post</h3>
+                <form onsubmit="createPost(event)">
+                    <input type="text" id="new-post-title" placeholder="Post Title" required />
+                    <textarea id="new-post-content" placeholder="Post Content" rows="6" required></textarea>
+                    <label>
+                        <input type="checkbox" id="new-post-published" />
+                        Publish immediately
+                    </label>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Create</button>
+                        <button type="button" class="btn btn-secondary" onclick="hideCreatePostForm()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="posts-list" class="data-list">
+                <!-- Posts will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Comments Tab -->
+        <div id="comments-tab" class="tab-content">
+            <div class="section-header">
+                <h2>💬 Comments Management</h2>
+            </div>
+
+            <div id="comments-list" class="data-list">
+                <!-- Comments will be loaded here -->
+            </div>
+        </div>
+
+
+    </div>
+
+    <script src="/js/admin.js"></script>
+</body>
+</html>

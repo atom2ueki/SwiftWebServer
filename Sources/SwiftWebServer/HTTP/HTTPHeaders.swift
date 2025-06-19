@@ -49,19 +49,19 @@ public enum HTTPHeader: String, CaseIterable, CustomStringConvertible {
     // MARK: - ETag Headers
     case ifNoneMatch = "If-None-Match"
     case ifModifiedSince = "If-Modified-Since"
-    
+
     // MARK: - Properties
-    
+
     /// The header name string
     public var name: String {
         return rawValue
     }
-    
+
     /// Case-insensitive header name for comparison
     public var lowercaseName: String {
         return rawValue.lowercased()
     }
-    
+
     // MARK: - CustomStringConvertible
     public var description: String {
         return rawValue
@@ -70,13 +70,13 @@ public enum HTTPHeader: String, CaseIterable, CustomStringConvertible {
 
 // MARK: - Static Methods
 public extension HTTPHeader {
-    
+
     /// Find header by name (case-insensitive)
     static func from(name: String) -> HTTPHeader? {
         let lowercaseName = name.lowercased()
         return HTTPHeader.allCases.first { $0.lowercaseName == lowercaseName }
     }
-    
+
     /// Common request headers
     static let commonRequestHeaders: [HTTPHeader] = [
         .accept, .acceptEncoding, .acceptLanguage, .authorization,

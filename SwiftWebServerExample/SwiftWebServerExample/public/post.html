@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Post - SwiftWebServer Blog</title>
+    <link rel="stylesheet" href="/css/blog.css">
+    <link rel="stylesheet" href="/css/post.css">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+</head>
+<body>
+    <div class="blog-container">
+        <header class="blog-header">
+            <div class="header-content">
+                <h1>📝 SwiftWebServer Blog</h1>
+                <nav class="blog-nav">
+                    <a href="/" class="nav-link">← Back to Blog</a>
+                    <a href="/login.html" class="nav-link">Login</a>
+                    <a href="/console.html" class="nav-link">Admin Console</a>
+                </nav>
+            </div>
+        </header>
+
+        <main class="post-main">
+            <article class="post-article" id="post-article">
+                <div class="loading">Loading post...</div>
+            </article>
+
+            <section class="comments-section" id="comments-section" style="display: none;">
+                <div class="comments-header">
+                    <h3>💬 Comments</h3>
+                    <div class="comments-count" id="comments-count">0 comments</div>
+                </div>
+
+                <div class="comment-form" id="comment-form" style="display: none;">
+                    <h4>Leave a Comment</h4>
+                    <form onsubmit="submitComment(event)">
+                        <textarea id="comment-content" placeholder="Write your comment..." rows="4" required></textarea>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Post Comment</button>
+                            <button type="button" class="btn btn-secondary" onclick="hideCommentForm()">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+
+                <button class="btn btn-outline" onclick="showCommentForm()" id="add-comment-btn">Add Comment</button>
+
+                <div class="comments-list" id="comments-list">
+                    <!-- Comments will be loaded here -->
+                </div>
+            </section>
+        </main>
+
+        <footer class="blog-footer">
+            <p>Powered by SwiftWebServer • <a href="/console.html">Admin Console</a></p>
+        </footer>
+    </div>
+
+    <script src="/js/post.js"></script>
+</body>
+</html>

@@ -12,7 +12,7 @@ public struct BodyParserOptions {
     public let parseMultipart: Bool
     /// Custom content type parsers
     public let customParsers: [String: BodyContentParser]
-    
+
     public init(
         maxBodySize: Int = 1024 * 1024, // 1MB
         parseJSON: Bool = true,
@@ -26,7 +26,7 @@ public struct BodyParserOptions {
         self.parseMultipart = parseMultipart
         self.customParsers = customParsers
     }
-    
+
     /// Default options
     public static let `default` = BodyParserOptions()
 }
@@ -49,10 +49,10 @@ public struct URLEncodedBodyParser: BodyContentParser {
         guard let string = String(data: data, encoding: .utf8) else {
             throw BodyParserError.invalidEncoding
         }
-        
+
         var result: [String: String] = [:]
         let pairs = string.components(separatedBy: "&")
-        
+
         for pair in pairs {
             let components = pair.components(separatedBy: "=")
             if components.count == 2 {
@@ -61,7 +61,7 @@ public struct URLEncodedBodyParser: BodyContentParser {
                 result[key] = value
             }
         }
-        
+
         return result
     }
 }
@@ -73,7 +73,7 @@ public enum BodyParserError: Error, LocalizedError {
     case invalidEncoding
     case parsingFailed(Error)
     case noContentType
-    
+
     public var errorDescription: String? {
         switch self {
         case .bodyTooLarge(let size, let maxSize):
@@ -93,40 +93,40 @@ public enum BodyParserError: Error, LocalizedError {
 /// BodyParser middleware that parses request bodies based on content type
 public class BodyParser: BaseMiddleware, ConfigurableMiddleware {
     public typealias Options = BodyParserOptions
-    
+
     private let options: BodyParserOptions
     private let jsonParser = JSONBodyParser()
     private let urlEncodedParser = URLEncodedBodyParser()
-    
+
     public required init(options: BodyParserOptions = .default) {
         self.options = options
         super.init()
     }
-    
+
     /// Convenience initializer
     public convenience override init() {
         self.init(options: .default)
     }
-    
+
     public override func execute(request: Request, response: Response, next: @escaping NextFunction) throws {
         // Only parse body if there is one
         guard let bodyData = request.body, !bodyData.isEmpty else {
             try next()
             return
         }
-        
+
         // Check body size
         if bodyData.count > options.maxBodySize {
             throw BodyParserError.bodyTooLarge(size: bodyData.count, maxSize: options.maxBodySize)
         }
-        
+
         // Get content type
         guard let contentType = request.contentType else {
             // If no content type, just continue without parsing
             try next()
             return
         }
-        
+
         // Parse based on content type
         do {
             let parsedBody = try parseBody(data: bodyData, contentType: contentType)
@@ -134,18 +134,18 @@ public class BodyParser: BaseMiddleware, ConfigurableMiddleware {
         } catch {
             throw BodyParserError.parsingFailed(error)
         }
-        
+
         try next()
     }
-    
+
     private func parseBody(data: Data, contentType: ContentType) throws -> Any {
         let mimeType = contentType.mimeType.lowercased()
-        
+
         // Check custom parsers first
         if let customParser = options.customParsers[mimeType] {
             return try customParser.parse(data: data)
         }
-        
+
         // Built-in parsers
         switch mimeType {
         case "application/json":
@@ -153,20 +153,20 @@ public class BodyParser: BaseMiddleware, ConfigurableMiddleware {
                 throw BodyParserError.unsupportedContentType(mimeType)
             }
             return try jsonParser.parse(data: data)
-            
+
         case "application/x-www-form-urlencoded":
             guard options.parseURLEncoded else {
                 throw BodyParserError.unsupportedContentType(mimeType)
             }
             return try urlEncodedParser.parse(data: data)
-            
+
         case let type where type.hasPrefix("multipart/"):
             guard options.parseMultipart else {
                 throw BodyParserError.unsupportedContentType(mimeType)
             }
             // TODO: Implement multipart parsing
             throw BodyParserError.unsupportedContentType("Multipart parsing not yet implemented")
-            
+
         default:
             throw BodyParserError.unsupportedContentType(mimeType)
         }
@@ -186,17 +186,17 @@ extension Request {
             middlewareStorage[Request.parsedBodyKey] = newValue
         }
     }
-    
+
     /// Get parsed body as a specific type
     public func body<T>(as type: T.Type) -> T? {
         return parsedBody as? T
     }
-    
+
     /// Get parsed body as JSON dictionary
     public var jsonBody: [String: Any]? {
         return parsedBody as? [String: Any]
     }
-    
+
     /// Get parsed body as form data
     public var formBody: [String: String]? {
         return parsedBody as? [String: String]

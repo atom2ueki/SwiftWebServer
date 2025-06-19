@@ -42,7 +42,7 @@ public enum SwiftWebServerError: Error, LocalizedError, CustomStringConvertible 
     // MARK: - Internal Errors
     case internalServerError(reason: String)
     case unexpectedError(error: Error)
-    
+
     // MARK: - LocalizedError Implementation
     public var errorDescription: String? {
         switch self {
@@ -88,12 +88,12 @@ public enum SwiftWebServerError: Error, LocalizedError, CustomStringConvertible 
             return "Unexpected error: \(error.localizedDescription)"
         }
     }
-    
+
     // MARK: - CustomStringConvertible Implementation
     public var description: String {
         return errorDescription ?? "Unknown SwiftWebServer error"
     }
-    
+
     // MARK: - HTTP Status Code Mapping
     public var httpStatusCode: HTTPStatusCode {
         switch self {
@@ -121,7 +121,7 @@ public enum SwiftWebServerError: Error, LocalizedError, CustomStringConvertible 
             return .internalServerError
         }
     }
-    
+
     // MARK: - Error Response Body
     public var errorResponseBody: String {
         let errorData: [String: Any] = [
@@ -131,12 +131,12 @@ public enum SwiftWebServerError: Error, LocalizedError, CustomStringConvertible 
             "message": errorDescription ?? "Unknown error",
             "timestamp": ISO8601DateFormatter().string(from: Date())
         ]
-        
+
         if let jsonData = try? JSONSerialization.data(withJSONObject: errorData, options: .prettyPrinted),
            let jsonString = String(data: jsonData, encoding: .utf8) {
             return jsonString
         }
-        
+
         // Fallback to simple format if JSON serialization fails
         return """
         {

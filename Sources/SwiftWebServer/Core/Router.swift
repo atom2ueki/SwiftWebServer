@@ -85,7 +85,7 @@ public struct RouteMatch {
 public enum PathSegment: Equatable {
     case literal(String)
     case parameter(String)
-    
+
     /// Parse a route pattern into path segments
     /// Example: "/user/{id}/posts/{postId}" -> [.literal("user"), .parameter("id"), .literal("posts"), .parameter("postId")]
     public static func parse(pattern: String) -> [PathSegment] {
@@ -167,7 +167,7 @@ public class Router {
     public func clearRoutes() {
         routes.removeAll()
     }
-    
+
     /// Remove routes matching specific criteria
     public func removeRoutes(method: HTTPMethod? = nil, pattern: String? = nil) {
         routes.removeAll { route in
@@ -189,22 +189,22 @@ public extension Router {
     func get(_ pattern: String, handler: @escaping (Request, Response) -> Void) {
         addRoute(method: .get, pattern: pattern, handler: handler)
     }
-    
+
     /// Add a POST route
     func post(_ pattern: String, handler: @escaping (Request, Response) -> Void) {
         addRoute(method: .post, pattern: pattern, handler: handler)
     }
-    
+
     /// Add a PUT route
     func put(_ pattern: String, handler: @escaping (Request, Response) -> Void) {
         addRoute(method: .put, pattern: pattern, handler: handler)
     }
-    
+
     /// Add a DELETE route
     func delete(_ pattern: String, handler: @escaping (Request, Response) -> Void) {
         addRoute(method: .delete, pattern: pattern, handler: handler)
     }
-    
+
     /// Add a PATCH route
     func patch(_ pattern: String, handler: @escaping (Request, Response) -> Void) {
         addRoute(method: .patch, pattern: pattern, handler: handler)

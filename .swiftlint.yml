@@ -1,0 +1,78 @@
+# SwiftLint Configuration for SwiftWebServer
+
+# Paths to include during linting. `--path` is ignored if present.
+included:
+  - Sources
+  - Tests
+
+# Paths to ignore during linting. Takes precedence over `included`.
+excluded:
+  - .build
+  - .swiftpm
+  - Package.swift
+  - SwiftWebServerExample
+
+# Rules to disable
+disabled_rules: []
+
+# Rules to enable (optional - these are enabled by default)
+opt_in_rules:
+  - empty_count
+  - empty_string
+  - first_where
+  - contains_over_first_not_nil
+  - contains_over_filter_count
+  - contains_over_filter_is_empty
+  - sorted_first_last
+  - reduce_boolean
+  - toggle_bool
+  - unused_optional_binding
+  - unused_enumerated
+  - unused_closure_parameter
+
+# Rule configurations
+line_length:
+  warning: 120
+  error: 200
+
+type_body_length:
+  warning: 300
+  error: 400
+
+function_body_length:
+  warning: 50
+  error: 100
+
+file_length:
+  warning: 500
+  error: 1000
+
+identifier_name:
+  min_length:
+    warning: 2
+    error: 1
+  max_length:
+    warning: 40
+    error: 60
+  excluded:
+    - id
+    - url
+    - uri
+    - ip
+
+type_name:
+  min_length:
+    warning: 3
+    error: 2
+  max_length:
+    warning: 40
+    error: 60
+
+# Custom rules (optional)
+custom_rules:
+  # Example: Prefer using SwiftWebServer types over raw strings
+  prefer_enum_over_string:
+    name: "Prefer Enum Over String"
+    regex: '(HTTPMethod|HTTPStatusCode|ContentType)\s*=\s*"[^"]*"'
+    message: "Prefer using enum cases over raw string values"
+    severity: warning

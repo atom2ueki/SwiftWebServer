@@ -1,17 +1,19 @@
-// swift-tools-version:5.3
+// swift-tools-version:5.6
 import PackageDescription
 
 let package = Package(
     name: "SwiftWebServer",
     platforms: [
-        .macOS(.v10_15)
+        .macOS(.v12)
     ],
     products: [
         .library(
             name: "SwiftWebServer",
             targets: ["SwiftWebServer"]),
     ],
-    dependencies: [],
+    dependencies: [
+        .package(url: "https://github.com/realm/SwiftLint", from: "0.50.0")
+    ],
     targets: [
         .target(
             name: "SwiftWebServer",

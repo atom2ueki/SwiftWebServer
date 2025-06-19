@@ -28,14 +28,14 @@ public struct BearerTokenOptions {
 /// Auth middleware: checks Authorization header for Bearer token
 public class BearerTokenMiddleware: BaseMiddleware, ConfigurableMiddleware {
     public typealias Options = BearerTokenOptions
-    
+
     private let options: BearerTokenOptions
-    
+
     public required init(options: BearerTokenOptions) {
         self.options = options
         super.init()
     }
-    
+
     public override func execute(request: Request, response: Response, next: @escaping NextFunction) throws {
         guard let authHeader = request.header(options.tokenHeader) else {
             try response.status(.unauthorized).json(["error": "Missing or invalid Authorization header"])
@@ -50,7 +50,7 @@ public class BearerTokenMiddleware: BaseMiddleware, ConfigurableMiddleware {
 
         // Extract token after 'Bearer '
         let token = String(authHeader.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces)
-        
+
         guard !token.isEmpty else {
             try response.status(.unauthorized).json(["error": "Missing or invalid Authorization header"])
             return

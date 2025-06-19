@@ -67,6 +67,8 @@ final public class SwiftWebServer {
 
     var ipv4cfsocket: CFSocket!
     var ipv6cfsocket: CFSocket!
+    var socketsource4: CFRunLoopSource!
+    var socketsource6: CFRunLoopSource!
 
     /// Initialize a new SwiftWebServer instance
     ///
@@ -83,9 +85,9 @@ final public class SwiftWebServer {
     public convenience init(port: UInt) {
         self.init()
     }
-    
+
     // MARK: - Public Status API
-    
+
     /// Current server status
     ///
     /// Returns the current status of the server, which can be:
@@ -138,13 +140,13 @@ final public class SwiftWebServer {
         // Update status to starting
         _status = .starting
         _currentPort = port
-        
+
         // prepare reuse address
         let intTrue: UInt32 = 1
         let unsafeIntTrue = withUnsafePointer(to: intTrue) { truePointer in
             return truePointer
         }
-        
+
         var context = CFSocketContext(version: 0,
                                       info: UnsafeMutableRawPointer(Unmanaged.passRetained(self).toOpaque()),
                                       retain: nil,
@@ -157,11 +159,16 @@ final public class SwiftWebServer {
                                       SOCK_STREAM,
                                       IPPROTO_TCP,
                                       CFSocketCallBackType.acceptCallBack.rawValue,
-                                      { (socket, type, address, data, info) in
+                                      { (socket, _, address, data, info) in
                                         let swiftWebServer = Unmanaged<SwiftWebServer>.fromOpaque(info!).takeUnretainedValue()
                                         swiftWebServer.handleConnect(socket: socket!, address: address!, data: data!)
                                       },
                                       &context)
+
+        guard ipv4cfsocket != nil else {
+            _status = .error("Failed to create IPv4 socket")
+            return
+        }
 
         // create ipv6 socket
         ipv6cfsocket = CFSocketCreate(kCFAllocatorDefault,
@@ -169,17 +176,21 @@ final public class SwiftWebServer {
                                       SOCK_STREAM,
                                       IPPROTO_TCP,
                                       CFSocketCallBackType.acceptCallBack.rawValue,
-                                      { (socket, type, address, data, info) in
+                                      { (socket, _, address, data, info) in
                                         let swiftWebServer = Unmanaged<SwiftWebServer>.fromOpaque(info!).takeUnretainedValue()
                                         swiftWebServer.handleConnect(socket: socket!, address: address!, data: data!)
                                       },
                                       &context)
 
+        // IPv6 socket creation failure is not critical
+
         // set reuse address for ipv4
         setsockopt(CFSocketGetNative(ipv4cfsocket), SOL_SOCKET, SO_REUSEADDR, unsafeIntTrue, socklen_t(MemoryLayout<UInt32>.size))
 
-        // set reuse address for ipv6
-        setsockopt(CFSocketGetNative(ipv6cfsocket), SOL_SOCKET, SO_REUSEADDR, unsafeIntTrue, socklen_t(MemoryLayout<UInt32>.size))
+        // set reuse address for ipv6 (only if socket exists)
+        if ipv6cfsocket != nil {
+            setsockopt(CFSocketGetNative(ipv6cfsocket), SOL_SOCKET, SO_REUSEADDR, unsafeIntTrue, socklen_t(MemoryLayout<UInt32>.size))
+        }
 
         // create ipv4 address
         var ipv4addr = sockaddr_in()
@@ -206,52 +217,76 @@ final public class SwiftWebServer {
         // bind ipv4 socket
         let ipv4bindResult = CFSocketSetAddress(ipv4cfsocket, ipv4data as CFData)
         if ipv4bindResult != CFSocketError.success {
-            print("ipv4 bind error")
+            print("ipv4 bind error: \(ipv4bindResult)")
+            _status = .error("Failed to bind IPv4 socket on port \(port)")
+            return
         }
 
-        // bind ipv6 socket
-        let ipv6bindResult = CFSocketSetAddress(ipv6cfsocket, ipv6data as CFData)
-        if ipv6bindResult != CFSocketError.success {
-            print("ipv6 bind error")
+        // bind ipv6 socket (only if socket was created successfully)
+        if ipv6cfsocket != nil {
+            let ipv6bindResult = CFSocketSetAddress(ipv6cfsocket, ipv6data as CFData)
+            if ipv6bindResult != CFSocketError.success {
+                print("ipv6 bind error: \(ipv6bindResult)")
+                // IPv6 binding failure is not critical, continue with IPv4 only
+                print("Continuing with IPv4 only")
+                CFSocketInvalidate(ipv6cfsocket)
+                ipv6cfsocket = nil
+            }
         }
 
         // listening on a socket by adding the socket to a run loop.
-        let socketsource4 = CFSocketCreateRunLoopSource(kCFAllocatorDefault, ipv4cfsocket, 0)
+        socketsource4 = CFSocketCreateRunLoopSource(kCFAllocatorDefault, ipv4cfsocket, 0)
         CFRunLoopAddSource(CFRunLoopGetCurrent(), socketsource4, CFRunLoopMode.defaultMode)
-        
-        let socketsource6 = CFSocketCreateRunLoopSource(kCFAllocatorDefault, ipv6cfsocket, 0)
-        CFRunLoopAddSource(CFRunLoopGetCurrent(), socketsource6, CFRunLoopMode.defaultMode)
-        
+
+        if ipv6cfsocket != nil {
+            socketsource6 = CFSocketCreateRunLoopSource(kCFAllocatorDefault, ipv6cfsocket, 0)
+            CFRunLoopAddSource(CFRunLoopGetCurrent(), socketsource6, CFRunLoopMode.defaultMode)
+        }
+
         // Update status to running
         _status = .running(port: port)
-        
+
         // callback
         completion()
     }
 
     public func close() {
-        let socketsourceV4 = CFSocketCreateRunLoopSource(kCFAllocatorDefault, ipv4cfsocket, 0)
-        CFRunLoopRemoveSource(CFRunLoopGetCurrent(), socketsourceV4, CFRunLoopMode.defaultMode)
-        CFSocketInvalidate(ipv4cfsocket)
-        
-        let socketsourceV6 = CFSocketCreateRunLoopSource(kCFAllocatorDefault, ipv6cfsocket, 0)
-        CFRunLoopRemoveSource(CFRunLoopGetCurrent(), socketsourceV6, CFRunLoopMode.defaultMode)
-        CFSocketInvalidate(ipv6cfsocket)
-        
+        // Remove run loop sources if they exist
+        if let source4 = socketsource4 {
+            CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source4, CFRunLoopMode.defaultMode)
+            socketsource4 = nil
+        }
+
+        if let source6 = socketsource6 {
+            CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source6, CFRunLoopMode.defaultMode)
+            socketsource6 = nil
+        }
+
+        // Invalidate sockets if they exist
+        if ipv4cfsocket != nil {
+            CFSocketInvalidate(ipv4cfsocket)
+            ipv4cfsocket = nil
+        }
+
+        if ipv6cfsocket != nil {
+            CFSocketInvalidate(ipv6cfsocket)
+            ipv6cfsocket = nil
+        }
+
         // close all connections inside connections
-        for connection in SwiftWebServer.connections
-        {
+        for connection in SwiftWebServer.connections {
             connection.value.disconnect()
         }
-        
+        SwiftWebServer.connections.removeAll()
+
         // Update status to stopped
         _status = .stopped
         _currentPort = 0
     }
 
     func handleConnect(socket: CFSocket, address: CFData, data: UnsafeRawPointer) {
-        let socketNativeHandle = CFSocketGetNative(socket)
-        let childSocketNativeHandle = socketNativeHandle
+        // The data parameter contains the native handle of the accepted socket
+        let childSocketNativeHandle = data.load(as: CFSocketNativeHandle.self)
 
         let connection = Connection(nativeSocketHandle: childSocketNativeHandle, server: self)
         SwiftWebServer.connections[address] = connection
@@ -382,7 +417,7 @@ public extension SwiftWebServer {
 
 // MARK: - Static file serving
 extension SwiftWebServer {
-    
+
     /// Add a directory to serve static files from
     /// Enables serving static files from the specified directory
     public func use(staticDirectory: String) {
@@ -391,22 +426,40 @@ extension SwiftWebServer {
             staticDirectories.append(absolutePath)
         }
     }
-    
+
     /// Check if a file exists in any of the static directories
     internal func findStaticFile(for path: String) -> String? {
         // Remove leading slash if present
         let cleanPath = path.hasPrefix("/") ? String(path.dropFirst()) : path
-        
+
         // If path is empty or just "/", try to serve index.html
         let filePath = cleanPath.isEmpty ? "index.html" : cleanPath
-        
+
+        print("Looking for static file: '\(filePath)' in directories: \(staticDirectories)")
+
         for directory in staticDirectories {
+            // First try the full path as requested
             let fullPath = URL(fileURLWithPath: directory).appendingPathComponent(filePath).path
+            print("Checking path: \(fullPath)")
             if FileManager.default.fileExists(atPath: fullPath) {
+                print("Found static file at: \(fullPath)")
                 return fullPath
             }
+
+            // If not found and path contains subdirectories, try just the filename
+            // This handles cases where Xcode flattens directory structure in app bundle
+            if filePath.contains("/") {
+                let fileName = URL(fileURLWithPath: filePath).lastPathComponent
+                let flatPath = URL(fileURLWithPath: directory).appendingPathComponent(fileName).path
+                print("Checking flattened path: \(flatPath)")
+                if FileManager.default.fileExists(atPath: flatPath) {
+                    print("Found static file at flattened path: \(flatPath)")
+                    return flatPath
+                }
+            }
         }
-        
+
+        print("Static file not found: \(filePath)")
         return nil
     }
 }

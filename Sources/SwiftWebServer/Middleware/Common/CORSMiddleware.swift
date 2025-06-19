@@ -49,7 +49,7 @@ public struct CORSOptions {
         self.allowCredentials = allowCredentials
         self.maxAge = maxAge
     }
-    
+
     public static let `default` = CORSOptions()
 
     // MARK: - Convenience Initializers
@@ -96,31 +96,31 @@ public struct CORSOptions {
 /// CORS middleware for handling Cross-Origin Resource Sharing
 public class CORSMiddleware: BaseMiddleware, ConfigurableMiddleware {
     public typealias Options = CORSOptions
-    
+
     private let options: CORSOptions
-    
+
     public required init(options: CORSOptions = .default) {
         self.options = options
         super.init()
     }
-    
+
     public convenience override init() {
         self.init(options: .default)
     }
-    
+
     public override func execute(request: Request, response: Response, next: @escaping NextFunction) throws {
         // Set CORS headers
         setCORSHeaders(request: request, response: response)
-        
+
         // Handle preflight requests
         if request.method == .options {
             response.status(.ok).send("")
             return
         }
-        
+
         try next()
     }
-    
+
     private func setCORSHeaders(request: Request, response: Response) {
         // Access-Control-Allow-Origin
         let requestOrigin = request.header(.origin) ?? "*"

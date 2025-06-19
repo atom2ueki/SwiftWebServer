@@ -10,23 +10,23 @@ import Foundation
 class Connection {
     var nativeSocketHandle: Int32
     var server: SwiftWebServer?
-    
+
     init(nativeSocketHandle: Int32, server: SwiftWebServer) {
         self.nativeSocketHandle = nativeSocketHandle
         self.server = server
-        
+
         // start reading from socket
         readFromSocket()
     }
-    
+
     func readFromSocket() {
         // Create a background queue for socket operations
         let queue = DispatchQueue(label: "atom2ueki.socket.read.queue", qos: .background)
-        
+
         queue.async {
             var buffer = [UInt8](repeating: 0, count: 4096)
             let bytesRead = recv(self.nativeSocketHandle, &buffer, buffer.count, 0)
-            
+
             if bytesRead > 0 {
                 let data = Data(bytes: buffer, count: bytesRead)
                 self.handleRequest(data: data)
@@ -36,7 +36,7 @@ class Connection {
             }
         }
     }
-    
+
     private func handleConnectionError(bytesRead: Int) {
         if bytesRead == 0 {
             // Connection closed by client
@@ -48,15 +48,15 @@ class Connection {
         }
         disconnect()
     }
-    
+
     private func handleRequest(data: Data) {
         do {
             let request = try createRequest(from: data)
             let response = Response(connection: self)
-            
+
             // Process the request
             processRequest(request: request, response: response)
-            
+
         } catch let error as SwiftWebServerError {
             // Handle known server errors
             handleServerError(error)
@@ -66,9 +66,9 @@ class Connection {
             handleServerError(serverError)
         }
     }
-    
+
     private func createRequest(from data: Data) throws -> Request {
-        guard data.count > 0 else {
+        guard !data.isEmpty else {
             throw SwiftWebServerError.malformedRequest
         }
 
@@ -80,7 +80,7 @@ class Connection {
 
         return try Request(inputData: data)
     }
-    
+
     private func processRequest(request: Request, response: Response) {
         // HTTP method is already validated during Request parsing
 
@@ -113,10 +113,10 @@ class Connection {
             // If no error, the response should have been sent by the route handler or middleware
         }
     }
-    
+
     private func handleServerError(_ error: SwiftWebServerError, response: Response? = nil) {
         print("Server error: \(error.description)")
-        
+
         if let response = response {
             // Send error response to client
             response.sendError(error)
@@ -126,11 +126,11 @@ class Connection {
             sendRawResponse(errorResponse)
         }
     }
-    
+
     private func createErrorResponse(for error: SwiftWebServerError) -> String {
         let statusCode = error.httpStatusCode
         let body = error.errorResponseBody
-        
+
         return """
         HTTP/1.1 \(statusCode.rawValue) \(statusCode.reasonPhrase)\r
         Content-Type: application/json\r
@@ -140,25 +140,27 @@ class Connection {
         \(body)
         """
     }
-    
+
     private func sendRawResponse(_ response: String) {
         let data = response.data(using: .utf8) ?? Data()
         _ = data.withUnsafeBytes { bytes in
             Darwin.send(nativeSocketHandle, bytes.bindMemory(to: UInt8.self).baseAddress, data.count, 0)
         }
     }
-    
+
     func send(data: Data) {
         _ = data.withUnsafeBytes { bytes in
             Darwin.send(nativeSocketHandle, bytes.bindMemory(to: UInt8.self).baseAddress, data.count, 0)
         }
     }
-    
+
     func disconnect() {
         close(nativeSocketHandle)
 
-        // Remove from connections dictionary
-        SwiftWebServer.connections = SwiftWebServer.connections.filter { $0.value !== self }
+        // Remove from connections dictionary safely
+        DispatchQueue.main.async {
+            SwiftWebServer.connections = SwiftWebServer.connections.filter { $0.value !== self }
+        }
     }
 }
 
@@ -191,7 +193,7 @@ internal class RouteHandlerMiddleware: Middleware {
         }
 
         // Fallback: try legacy route handlers for backward compatibility
-        if let routeHandlers = server.routeHandlers, routeHandlers.count > 0 {
+        if let routeHandlers = server.routeHandlers, !routeHandlers.isEmpty {
             let requestKey = "\(request.method.rawValue) \(request.path)"
 
             if let handler = routeHandlers[requestKey] {

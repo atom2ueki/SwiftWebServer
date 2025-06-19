@@ -7,13 +7,13 @@ A lightweight, Swift-based HTTP web server with middleware support, built using 
 - 🚀 **Lightweight & Fast**: Minimal overhead with efficient request handling
 - 🔧 **Middleware System**: Extensible middleware architecture for request/response processing
 - 🛣️ **Route Handling**: Support for path parameters and multiple HTTP methods
+- 🦾 **Body Parsing**: JSON and form data parsing middleware
 - 📁 **Static File Serving**: Built-in static file serving with automatic MIME type detection
 - 🍪 **Cookie Support**: Full cookie parsing and setting capabilities
 - 🔒 **Authentication**: Bearer token authentication middleware
 - 🌐 **CORS Support**: Cross-Origin Resource Sharing middleware
 - 📝 **Logging**: Configurable request/response logging
 - 🏷️ **ETag Support**: Conditional requests with 304 Not Modified responses
-- 📊 **Body Parsing**: JSON and form data parsing middleware
 
 ## Quick Start
 
@@ -466,6 +466,14 @@ res.clearCookie("session")         // Clear cookie
 res.sendWithETag(content, contentType: .applicationJson)
 res.notModified()                  // Send 304 Not Modified
 
+// Redirects
+res.redirect("/new-path")          // Temporary redirect (302)
+res.redirect("/new-path", permanent: true)  // Permanent redirect (301)
+res.redirectPermanent("/new-path") // Permanent redirect (301)
+res.redirectTemporary("/new-path") // Temporary redirect (302)
+res.redirectTemporaryPreserveMethod("/new-path")  // 307 redirect
+res.redirectPermanentPreserveMethod("/new-path")  // 308 redirect
+
 // Method chaining
 res.status(.ok)
    .header(.contentType, "application/json")
@@ -575,23 +583,37 @@ do {
 }
 ```
 
-## Examples
+## Example Application
 
-Check out the `SwiftWebServerExample` directory for more examples:
+The SwiftWebServerExample project demonstrates a complete blog application with both frontend and backend servers:
 
-- **BasicUsage**: Simple server with routes and static files
-- **MiddlewareExamples**: Demonstrates all built-in middleware
-- **CustomMiddleware**: Examples of creating custom middleware
+### Architecture
 
-## Requirements
+- **Backend Server (Port 8080)**: REST API with authentication, user management, and blog posts
+- **Frontend Server (Port 3000)**: Serves static HTML/CSS/JS files and acts as a proxy to the backend
 
-- Swift 5.3+
-- macOS 10.15+
-- Xcode 12.0+
+### Features
 
-## Contributing
+- **Blog Interface**: Public blog page displaying posts
+- **Admin Login**: Secure login page with authentication
+- **Admin Dashboard**: Clean blog management interface for authenticated users
+- **Dual Server Setup**: Separate frontend and backend servers for realistic deployment simulation
 
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+### Authentication Flow
+
+1. Users access the blog at `http://localhost:3000/`
+2. Admin login is available at `http://localhost:3000/login.html`
+3. After successful authentication, users are redirected to `http://localhost:3000/admin.html`
+4. The admin page uses HTTP redirects to ensure proper authentication flow
+5. Logout redirects back to the login page
+
+### Running the Example
+
+1. Open `SwiftWebServerExample.xcodeproj` in Xcode
+2. Run the project on iOS/macOS
+3. Start both servers using the native controls
+4. Access the blog at `http://localhost:3000/`
+5. Use demo credentials: `johndoe` / `password123`
 
 ### Development Setup
 
@@ -603,10 +625,3 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- Built with Swift's powerful type system and concurrency features
-- Designed for simplicity and extensibility
-- Follows modern middleware architecture patterns
-```

@@ -15,7 +15,7 @@ public enum HTTPDateFormat {
     case asctime    // "EEE MMM d HH:mm:ss yyyy" - ANSI C asctime() format
     case iso8601    // "yyyy-MM-dd'T'HH:mm:ss'Z'" - ISO 8601 format
     case custom(String) // Custom format string
-    
+
     /// The format string for this date format
     public var formatString: String {
         switch self {
@@ -31,7 +31,7 @@ public enum HTTPDateFormat {
             return format
         }
     }
-    
+
     /// Default timezone for this format
     public var defaultTimeZone: TimeZone {
         switch self {
@@ -50,7 +50,7 @@ public struct HTTPDateFormatterConfig {
     public let format: HTTPDateFormat
     public let timeZone: TimeZone
     public let locale: Locale
-    
+
     public init(
         format: HTTPDateFormat = .rfc7231,
         timeZone: TimeZone? = nil,
@@ -60,13 +60,13 @@ public struct HTTPDateFormatterConfig {
         self.timeZone = timeZone ?? format.defaultTimeZone
         self.locale = locale
     }
-    
+
     /// Default configuration for HTTP headers (RFC 7231)
     public static let httpDefault = HTTPDateFormatterConfig()
-    
+
     /// Configuration for cookie expiration dates
     public static let cookieExpires = HTTPDateFormatterConfig(format: .rfc7231)
-    
+
     /// Configuration for ISO 8601 dates
     public static let iso8601 = HTTPDateFormatterConfig(
         format: .iso8601,
@@ -76,14 +76,14 @@ public struct HTTPDateFormatterConfig {
 
 /// HTTP date formatting utility with configurable formats, timezones, and locales
 public struct HTTPDateFormatter {
-    
+
     // MARK: - Cached Formatters
-    
+
     private static var formatterCache: [String: DateFormatter] = [:]
     private static let cacheQueue = DispatchQueue(label: "atom2ueki.http.date.formatter.cache", attributes: .concurrent)
-    
+
     // MARK: - Public Methods
-    
+
     /// Format date using the specified configuration
     ///
     /// - Parameters:
@@ -127,7 +127,7 @@ public struct HTTPDateFormatter {
     public static func formatISO8601(_ date: Date) -> String {
         return format(date, config: .iso8601)
     }
-    
+
     /// Parse HTTP date string using common HTTP date formats
     ///
     /// Attempts to parse a date string using multiple HTTP date formats:
@@ -153,27 +153,27 @@ public struct HTTPDateFormatter {
 
         return nil
     }
-    
+
     // MARK: - Private Methods
-    
+
     private static func getFormatter(for config: HTTPDateFormatterConfig) -> DateFormatter {
         let cacheKey = "\(config.format.formatString)_\(config.timeZone.identifier)_\(config.locale.identifier)"
-        
+
         return cacheQueue.sync {
             if let cachedFormatter = formatterCache[cacheKey] {
                 return cachedFormatter
             }
-            
+
             let formatter = DateFormatter()
             formatter.dateFormat = config.format.formatString
             formatter.timeZone = config.timeZone
             formatter.locale = config.locale
-            
+
             formatterCache[cacheKey] = formatter
             return formatter
         }
     }
-    
+
     /// Clear the formatter cache (useful for memory management)
     ///
     /// Removes all cached DateFormatter instances to free up memory.

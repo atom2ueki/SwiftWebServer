@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 @main
 struct SwiftWebServerExampleApp: App {
@@ -13,5 +14,6 @@ struct SwiftWebServerExampleApp: App {
         WindowGroup {
             ContentView()
         }
+        .modelContainer(for: [User.self, Post.self, Comment.self])
     }
 }

@@ -1,6 +1,7 @@
 {
   "images" : [
     {
+      "filename" : "swiftwebserver_app_icon_fullscreen.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"

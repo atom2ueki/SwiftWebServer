@@ -54,7 +54,7 @@ final class FrontendServerManager {
                 self?.addLogMessage(message, type: .info)
             }
         )))
-        
+
         // CORS Middleware for frontend-backend communication
         server.use(CORSMiddleware(options: CORSOptions(
             allowedOrigins: .any,
@@ -64,18 +64,41 @@ final class FrontendServerManager {
             allowCredentials: true,
             maxAge: 86400
         )))
-        
-        // Static file serving from public directory
-        // Get the path to the public directory relative to the app bundle
+
+        // Cookie Middleware - Required for handling cookies in cross-origin scenarios
+        server.use(CookieMiddleware())
+
+        // Static file serving from public directory (for assets only: CSS, JS, images, etc.)
+        // HTML files are served through route handlers, not static file serving
         let publicPath = getPublicDirectoryPath()
-        addLogMessage("Configuring static directory: \(publicPath)", type: .info)
+        addLogMessage("Configuring static directory for assets: \(publicPath)", type: .info)
         server.use(staticDirectory: publicPath)
     }
     
     private func configureRoutes(_ server: SwiftWebServer) {
-        // Root route fallback (in case static file serving doesn't work)
+        // Root route - serve index.html
         server.get("/") { [weak self] req, res in
-            self?.handleRootFallback(req, res)
+            self?.serveHtmlPage("index.html", req, res)
+        }
+
+        // HTML page routes
+        server.get("/login") { [weak self] req, res in
+            self?.addLogMessage("Login page requested", type: .info)
+            self?.serveHtmlPage("login.html", req, res)
+        }
+
+        server.get("/admin") { [weak self] req, res in
+            self?.addLogMessage("Admin page requested", type: .info)
+            self?.serveHtmlPage("admin.html", req, res)
+        }
+
+        server.get("/post") { [weak self] req, res in
+            self?.serveHtmlPage("post.html", req, res)
+        }
+
+        // Path parameter route for blog posts: /post/{id}
+        server.get("/post/{id}") { [weak self] req, res in
+            self?.serveHtmlPage("post.html", req, res)
         }
 
         // Configuration endpoint for frontend
@@ -167,25 +190,24 @@ final class FrontendServerManager {
 
     // MARK: - Request Handlers
 
-    private func handleRootFallback(_ req: Request, _ res: Response) {
-        // Try to serve index.html manually if static file serving fails
+    private func serveHtmlPage(_ fileName: String, _ req: Request, _ res: Response) {
         let publicPath = getPublicDirectoryPath()
-        let indexPath = URL(fileURLWithPath: publicPath).appendingPathComponent("index.html").path
+        let filePath = URL(fileURLWithPath: publicPath).appendingPathComponent(fileName).path
 
-        addLogMessage("Attempting to serve index.html from: \(indexPath)", type: .info)
+        addLogMessage("Attempting to serve \(fileName) from: \(filePath)", type: .info)
 
-        if FileManager.default.fileExists(atPath: indexPath) {
+        if FileManager.default.fileExists(atPath: filePath) {
             do {
-                let content = try String(contentsOfFile: indexPath, encoding: .utf8)
+                let content = try String(contentsOfFile: filePath, encoding: .utf8)
                 res.html(content)
-                addLogMessage("Successfully served index.html", type: .success)
+                addLogMessage("Successfully served \(fileName)", type: .success)
             } catch {
-                addLogMessage("Failed to read index.html: \(error.localizedDescription)", type: .error)
-                res.internalServerError("Failed to load frontend")
+                addLogMessage("Failed to read \(fileName): \(error.localizedDescription)", type: .error)
+                res.internalServerError("Failed to load page")
             }
         } else {
-            addLogMessage("index.html not found at: \(indexPath)", type: .error)
-            res.notFound("Frontend not found")
+            addLogMessage("\(fileName) not found at: \(filePath)", type: .error)
+            res.notFound("Page not found")
         }
     }
 

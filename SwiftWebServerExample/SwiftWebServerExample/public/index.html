@@ -15,8 +15,11 @@
                 <p>A modern blog powered by SwiftWebServer</p>
                 <nav class="blog-nav">
                     <a href="/" class="nav-link active">Home</a>
-                    <a href="/login.html" class="nav-link">Login</a>
-                    <a href="/admin.html" class="nav-link">Admin</a>
+                    <div class="auth-section">
+                        <button id="auth-btn" class="auth-btn" onclick="handleAuthClick()">
+                            <span id="auth-icon">👤</span>
+                        </button>
+                    </div>
                 </nav>
             </div>
         </header>
@@ -28,7 +31,7 @@
         </main>
 
         <footer class="blog-footer">
-            <p>Powered by SwiftWebServer • <a href="/admin.html">Admin</a></p>
+            <p>Powered by <a href="https://github.com/atom2ueki/SwiftWebServer" target="_blank">SwiftWebServer</a> with ❤️</p>
         </footer>
     </div>
 

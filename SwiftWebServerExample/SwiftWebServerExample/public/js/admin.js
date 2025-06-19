@@ -13,7 +13,19 @@ document.addEventListener('DOMContentLoaded', async function() {
     authToken = getCookie('auth_token');
     if (!authToken) {
         // If no auth token, redirect to login
-        window.location.href = '/login.html';
+        console.log('No auth token found, redirecting to login');
+        window.location.href = '/login';
+        return;
+    }
+
+    // Validate the auth token with the backend
+    console.log('Auth token from cookie:', authToken);
+    const isValid = await validateAuthToken();
+    if (!isValid) {
+        console.log('Auth token invalid, redirecting to login');
+        // Clear invalid token with proper domain and path
+        document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=localhost;';
+        window.location.href = '/login';
         return;
     }
 
@@ -68,13 +80,44 @@ function showTab(tabName) {
 }
 
 // Authentication
+async function validateAuthToken() {
+    if (!authToken) {
+        return false;
+    }
+
+    try {
+        console.log('Validating auth token with backend...');
+        const response = await fetch(`${API_BASE}/api/admin/stats`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${authToken}`
+            },
+            credentials: 'include' // Include cookies in cross-origin requests
+        });
+
+        console.log('Auth validation response status:', response.status);
+
+        if (response.ok) {
+            console.log('Auth token is valid');
+            return true;
+        } else {
+            console.log('Auth token is invalid');
+            return false;
+        }
+    } catch (error) {
+        console.error('Error validating auth token:', error);
+        return false;
+    }
+}
+
 async function logout() {
     try {
         await fetch(`${API_BASE}/api/auth/logout`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${authToken}`
-            }
+            },
+            credentials: 'include' // Include cookies in cross-origin requests
         });
     } catch (error) {
         console.error('Logout error:', error);
@@ -82,9 +125,9 @@ async function logout() {
     
     authToken = null;
     currentUser = null;
-    
+
     // Redirect to login page
-    window.location.href = '/login.html';
+    window.location.href = '/login';
 }
 
 function showUserInfo() {
@@ -172,6 +215,7 @@ async function createPost(event) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${authToken}`
             },
+            credentials: 'include', // Include cookies in cross-origin requests
             body: JSON.stringify(postData)
         });
         
@@ -214,7 +258,8 @@ async function deletePost(postId) {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${authToken}`
-            }
+            },
+            credentials: 'include' // Include cookies in cross-origin requests
         });
         
         if (response.ok) {

@@ -498,7 +498,10 @@ server.use(ETagMiddleware())
 
 // Authentication middleware for protected routes
 let authMiddleware = BearerTokenMiddleware(options: BearerTokenOptions(
-    validator: { token in token == "secret-api-key" }
+    validator: { token in
+        // Validate token against your auth system
+        return validateJWT(token) || validateDatabaseToken(token)
+    }
 ))
 
 // Public routes

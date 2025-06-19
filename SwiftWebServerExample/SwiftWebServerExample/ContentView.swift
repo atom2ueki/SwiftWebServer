@@ -15,7 +15,7 @@ struct ContentView: View {
 
     var body: some View {
         if let dataManager = dataManager, let webServerManager = webServerManager {
-            MainView(dataManager: dataManager, webServerManager: webServerManager)
+            MainView(dataManager: dataManager, webServerManager: webServerManager, frontendServerManager: FrontendServerManager(backendServerManager: webServerManager))
         } else {
             VStack {
                 ProgressView("Initializing...")

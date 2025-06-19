@@ -14,6 +14,6 @@ struct SwiftWebServerExampleApp: App {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(for: [User.self, Post.self, Comment.self])
+        .modelContainer(for: [User.self, Post.self, Comment.self, AuthToken.self])
     }
 }

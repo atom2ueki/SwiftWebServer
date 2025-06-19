@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     const authToken = getCookie('auth_token');
     if (authToken) {
         // Redirect to admin if already logged in
-        window.location.href = '/admin.html';
+        window.location.href = '/admin';
         return;
     }
     
@@ -71,6 +71,7 @@ async function handleLogin(event) {
             headers: {
                 'Content-Type': 'application/json'
             },
+            credentials: 'include', // Include cookies in cross-origin requests
             body: JSON.stringify({
                 username: username,
                 password: password
@@ -82,11 +83,22 @@ async function handleLogin(event) {
         if (response.ok) {
             // Login successful
             showSuccess('Login successful! Redirecting...');
-            
-            // Wait a moment then redirect to admin
+
+            // The backend should have set the auth_token cookie
+            // Wait a moment for the cookie to be set, then redirect
             setTimeout(() => {
-                window.location.href = '/admin.html';
-            }, 1000);
+                // Check if cookie was set
+                const authToken = getCookie('auth_token');
+                console.log('Auth token after login:', authToken);
+
+                if (authToken) {
+                    console.log('Cookie found, redirecting to /admin');
+                    window.location.href = '/admin';
+                } else {
+                    console.warn('No auth token cookie found, redirecting anyway');
+                    window.location.href = '/admin';
+                }
+            }, 500);
             
         } else {
             // Login failed

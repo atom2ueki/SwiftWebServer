@@ -87,26 +87,30 @@ extension WebServerManager {
             let loginRequest = try JSONDecoder().decode(LoginRequest.self, from: data)
             
             if let user = dataManager.authenticateUser(username: loginRequest.username, password: loginRequest.password) {
-                let token = generateUserToken(for: user)
-                let response = LoginResponse(
-                    token: token,
-                    user: UserResponse(from: user),
-                    expiresIn: 3600 // 1 hour
-                )
-                
-                let responseData = try JSONEncoder().encode(response)
-                let responseString = String(data: responseData, encoding: .utf8) ?? "{}"
-                
-                // Set authentication cookie
-                res.cookie("auth_token", token, attributes: CookieAttributes(
-                    expires: Date().addingTimeInterval(3600),
-                    secure: false, // Set to true in production with HTTPS
-                    httpOnly: true,
-                    sameSite: .lax
-                ))
-                
-                res.json(responseString)
-                addLogMessage("User \(user.username) logged in", type: .success)
+                do {
+                    // Create persistent auth token
+                    let authToken = try dataManager.createAuthToken(for: user, expiresIn: 3600, deviceInfo: req.header("User-Agent"))
+                    let response = LoginResponse(authToken: authToken, user: user)
+
+                    let responseData = try JSONEncoder().encode(response)
+                    let responseString = String(data: responseData, encoding: .utf8) ?? "{}"
+
+                    // Set authentication cookie with domain and path for cross-origin access
+                    res.cookie("auth_token", authToken.token, attributes: CookieAttributes(
+                        domain: "localhost", // Allow access from both localhost:3000 and localhost:8080
+                        path: "/", // Make cookie available to all paths
+                        expires: authToken.expiresAt,
+                        secure: false, // Set to true in production with HTTPS
+                        httpOnly: false, // Allow JavaScript access for frontend auth checks
+                        sameSite: .lax
+                    ))
+
+                    res.json(responseString)
+                    addLogMessage("User \(user.username) logged in with token \(authToken.token.prefix(10))...", type: .success)
+                } catch {
+                    res.internalServerError("Failed to create authentication token")
+                    addLogMessage("Failed to create auth token for user: \(user.username)", type: .error)
+                }
             } else {
                 res.unauthorized("Invalid credentials")
                 addLogMessage("Failed login attempt for username: \(loginRequest.username)", type: .warning)
@@ -117,10 +121,22 @@ extension WebServerManager {
     }
     
     func handleLogout(_ req: Request, _ res: Response) {
-        // Clear authentication cookie
+        // Try to revoke the token if present
+        if let tokenString = req.cookie("auth_token") {
+            do {
+                try dataManager.revokeAuthToken(tokenString)
+                addLogMessage("Auth token revoked: \(tokenString.prefix(10))...", type: .info)
+            } catch {
+                addLogMessage("Failed to revoke auth token: \(error)", type: .warning)
+            }
+        }
+
+        // Clear authentication cookie with same domain and path as login
         res.cookie("auth_token", "", attributes: CookieAttributes(
+            domain: "localhost", // Match login cookie domain
+            path: "/", // Match login cookie path
             expires: Date(timeIntervalSince1970: 0),
-            httpOnly: true
+            httpOnly: false // Match login cookie settings
         ))
 
         res.json(jsonMessage("Logged out successfully"))
@@ -265,6 +281,11 @@ extension WebServerManager {
                 "approved": dataManager.approvedComments,
                 "pending": dataManager.totalComments - dataManager.approvedComments
             ],
+            "auth_tokens": [
+                "total": dataManager.totalAuthTokens,
+                "active": dataManager.activeAuthTokens,
+                "expired": dataManager.totalAuthTokens - dataManager.activeAuthTokens
+            ],
             "server": [
                 "uptime": isRunning ? "running" : "stopped",
                 "port": currentPort,
@@ -289,8 +310,4 @@ struct LoginRequest: Codable {
     let password: String
 }
 
-struct LoginResponse: Codable {
-    let token: String
-    let user: UserResponse
-    let expiresIn: Int
-}
+

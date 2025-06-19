@@ -23,6 +23,7 @@ final class User {
     // Relationships
     @Relationship(deleteRule: .cascade, inverse: \Post.author) var posts: [Post] = []
     @Relationship(deleteRule: .cascade, inverse: \Comment.author) var comments: [Comment] = []
+    @Relationship(deleteRule: .cascade, inverse: \AuthToken.user) var authTokens: [AuthToken] = []
     
     init(username: String, email: String, passwordHash: String, firstName: String, lastName: String) {
         self.id = UUID()

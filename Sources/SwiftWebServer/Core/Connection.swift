@@ -221,6 +221,19 @@ internal class RouteHandlerMiddleware: Middleware {
 
         // If still no route or file found, send 404
         if !routeFound {
+            // For GET requests, try to serve a custom 404 HTML page
+            if request.method == .get {
+                if let custom404Path = server.findStaticFile(for: "/404.html") {
+                    do {
+                        response.status(.notFound)
+                        try response.sendFile(custom404Path)
+                        return // Don't call next() - 404 page served
+                    } catch {
+                        // If custom 404 page fails, fall back to default error
+                    }
+                }
+            }
+
             throw SwiftWebServerError.routeNotFound(path: request.path, method: request.method.rawValue)
         }
     }

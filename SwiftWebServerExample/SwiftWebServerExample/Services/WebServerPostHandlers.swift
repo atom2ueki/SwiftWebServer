@@ -349,18 +349,6 @@ extension WebServerManager {
     }
 
     private func getUserFromToken(_ token: String) -> User? {
-        if token == "demo-api-key" {
-            // Return first user for demo purposes
-            return dataManager.users.first
-        }
-        
-        if token.hasPrefix("user-") {
-            let userIdString = String(token.dropFirst(5))
-            if let userId = UUID(uuidString: userIdString) {
-                return dataManager.getUser(by: userId)
-            }
-        }
-        
-        return nil
+        return dataManager.getUserFromToken(token)
     }
 }

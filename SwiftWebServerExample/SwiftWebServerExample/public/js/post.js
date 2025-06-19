@@ -9,14 +9,15 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Load configuration first
     await loadConfig();
     
-    // Check for auth token
+    // Check for auth token and update UI
     authToken = getCookie('auth_token');
-    
-    // Get post ID from URL parameters
-    const urlParams = new URLSearchParams(window.location.search);
-    const postId = urlParams.get('id');
-    
-    if (postId) {
+    updateAuthButton();
+
+    // Get post ID from URL path parameters
+    const pathParts = window.location.pathname.split('/');
+    const postId = pathParts[2]; // /post/{id} -> pathParts[2] is the ID
+
+    if (postId && postId !== '') {
         await loadPost(postId);
         await loadComments(postId);
     } else {
@@ -45,7 +46,9 @@ async function loadPost(postId) {
     const articleContainer = document.getElementById('post-article');
     
     try {
-        const response = await fetch(`${API_BASE}/api/posts/${postId}`);
+        const response = await fetch(`${API_BASE}/api/posts/${postId}`, {
+            credentials: 'include' // Include cookies in cross-origin requests
+        });
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
@@ -72,13 +75,13 @@ async function loadPost(postId) {
 // Create post HTML
 function createPostHTML(post) {
     const publishedDate = new Date(post.publishedAt || post.createdAt);
-    const formattedDate = publishedDate.toLocaleDateString('en-US', {
+    const formattedDate = isValidDate(publishedDate) ? publishedDate.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
-    });
+    }) : 'Date unavailable';
     
     return `
         <div class="post-content-header">
@@ -111,7 +114,9 @@ async function loadComments(postId) {
     const commentsCount = document.getElementById('comments-count');
     
     try {
-        const response = await fetch(`${API_BASE}/api/posts/${postId}/comments`);
+        const response = await fetch(`${API_BASE}/api/posts/${postId}/comments`, {
+            credentials: 'include' // Include cookies in cross-origin requests
+        });
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
@@ -143,13 +148,13 @@ async function loadComments(postId) {
 // Create comment HTML
 function createCommentHTML(comment) {
     const commentDate = new Date(comment.createdAt);
-    const formattedDate = commentDate.toLocaleDateString('en-US', {
+    const formattedDate = isValidDate(commentDate) ? commentDate.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
-    });
+    }) : 'Date unavailable';
     
     return `
         <div class="comment">
@@ -208,6 +213,7 @@ async function submitComment(event) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${authToken}`
             },
+            credentials: 'include', // Include cookies in cross-origin requests
             body: JSON.stringify({ content })
         });
         
@@ -276,4 +282,33 @@ function getCookie(name) {
     const parts = value.split(`; ${name}=`);
     if (parts.length === 2) return parts.pop().split(';').shift();
     return null;
+}
+
+function isValidDate(date) {
+    return date instanceof Date && !isNaN(date.getTime());
+}
+
+// Update authentication button based on login status
+function updateAuthButton() {
+    const authBtn = document.getElementById('auth-btn');
+    const authIcon = document.getElementById('auth-icon');
+
+    if (authToken) {
+        authIcon.textContent = '⚙️'; // Admin icon
+        authBtn.title = 'Go to Admin';
+    } else {
+        authIcon.textContent = '👤'; // Login icon
+        authBtn.title = 'Login';
+    }
+}
+
+// Handle authentication button click
+function handleAuthClick() {
+    if (authToken) {
+        // User is logged in, go to admin
+        window.location.href = '/admin';
+    } else {
+        // User is not logged in, go to login
+        window.location.href = '/login';
+    }
 }

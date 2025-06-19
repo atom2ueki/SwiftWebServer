@@ -13,7 +13,8 @@ import Observation
 final class WebServerManager {
     private var server: SwiftWebServer?
     internal let dataManager: DataManager
-    
+    private var tokenCleanupTimer: Timer?
+
     // Server status
     var isRunning: Bool = false
     var currentPort: UInt = 0
@@ -176,7 +177,7 @@ final class WebServerManager {
         // Protected routes with authentication
         let authMiddleware = BearerTokenMiddleware(options: BearerTokenOptions(
             validator: { [weak self] token in
-                return self?.validateAuthToken(token) ?? false
+                return self?.dataManager.validateAuthToken(token) != nil
             }
         ))
         
@@ -187,7 +188,8 @@ final class WebServerManager {
         server.use(.put, "/api/comments/{id}", authMiddleware)
         server.use(.delete, "/api/comments/{id}", authMiddleware)
         
-        // Admin routes
+        // Admin routes (protected)
+        server.use(.get, "/api/admin/stats", authMiddleware)
         server.get("/api/admin/stats") { [weak self] req, res in
             self?.handleAdminStats(req, res)
         }
@@ -212,8 +214,6 @@ final class WebServerManager {
         server.get("/api/demo/error") { [weak self] req, res in
             self?.handleErrorDemo(req, res)
         }
-
-        server.use(.get, "/api/admin/stats", authMiddleware)
     }
     
     // MARK: - Server Control
@@ -236,6 +236,9 @@ final class WebServerManager {
                     self.addLogMessage("Failed to create sample data: \(error.localizedDescription)", type: .error)
                 }
             }
+
+            // Start token cleanup timer
+            self.startTokenCleanupTimer()
         }
     }
     
@@ -244,6 +247,10 @@ final class WebServerManager {
         isRunning = false
         currentPort = 0
         serverStatus = "Stopped"
+
+        // Stop token cleanup timer
+        stopTokenCleanupTimer()
+
         addLogMessage("Server stopped", type: .info)
     }
     
@@ -276,16 +283,37 @@ final class WebServerManager {
     func clearLogs() {
         logMessages.removeAll()
     }
-    
-    // MARK: - Authentication Helper
-    
-    private func validateAuthToken(_ token: String) -> Bool {
-        // Simple token validation - in production, use JWT or proper token validation
-        return token == "demo-api-key" || token.hasPrefix("user-")
+
+    // MARK: - Token Cleanup Service
+
+    private func startTokenCleanupTimer() {
+        // Clean up expired tokens every 30 minutes
+        tokenCleanupTimer = Timer.scheduledTimer(withTimeInterval: 1800, repeats: true) { [weak self] _ in
+            self?.performTokenCleanup()
+        }
+
+        // Perform initial cleanup
+        performTokenCleanup()
     }
-    
-    func generateUserToken(for user: User) -> String {
-        return "user-\(user.id.uuidString)"
+
+    private func stopTokenCleanupTimer() {
+        tokenCleanupTimer?.invalidate()
+        tokenCleanupTimer = nil
+    }
+
+    private func performTokenCleanup() {
+        do {
+            let initialCount = dataManager.totalAuthTokens
+            try dataManager.cleanupExpiredTokens()
+            let finalCount = dataManager.totalAuthTokens
+            let cleanedCount = initialCount - finalCount
+
+            if cleanedCount > 0 {
+                addLogMessage("Cleaned up \(cleanedCount) expired auth tokens", type: .info)
+            }
+        } catch {
+            addLogMessage("Failed to cleanup expired tokens: \(error)", type: .warning)
+        }
     }
     
     // MARK: - API Route Handlers

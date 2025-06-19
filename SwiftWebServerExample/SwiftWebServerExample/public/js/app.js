@@ -15,8 +15,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         showUserInfo();
     } else {
         // If no auth token and this is the admin page, redirect to login
-        if (window.location.pathname.includes('admin.html')) {
-            window.location.href = '/login.html';
+        if (window.location.pathname.includes('admin')) {
+            window.location.href = '/login';
             return;
         }
     }

@@ -15,7 +15,6 @@ struct DataManagementView: View {
     @State private var selectedSection = 0 // 0 = Overview, 1 = Users, 2 = Posts, 3 = Comments
 
     @State private var showingCreateSampleData = false
-    @State private var showingClearDataAlert = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -26,22 +25,6 @@ struct DataManagementView: View {
                     .fontWeight(.semibold)
 
                 Spacer()
-
-                // Actions menu
-                Menu {
-                    if dataManager.totalUsers == 0 {
-                        Button("Create Sample Data") {
-                            showingCreateSampleData = true
-                        }
-                    }
-                    Button("Clear All Data") {
-                        showingClearDataAlert = true
-                    }
-                } label: {
-                    Image(systemName: "plus.circle")
-                        .font(.title3)
-                        .foregroundColor(.blue)
-                }
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
@@ -93,20 +76,6 @@ struct DataManagementView: View {
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("This will create sample users, posts, and comments for testing the API.")
-        }
-        .alert("Clear All Data", isPresented: $showingClearDataAlert) {
-            Button("Clear", role: .destructive) {
-                Task {
-                    do {
-                        try dataManager.clearAllData()
-                    } catch {
-                        print("Error clearing data: \(error)")
-                    }
-                }
-            }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("This will permanently delete all users, posts, and comments. This action cannot be undone.")
         }
     }
 }

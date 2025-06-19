@@ -34,7 +34,7 @@ A comprehensive demonstration of the SwiftWebServer framework capabilities, feat
 
 ## 📋 Requirements
 
-- macOS 14.0+ (Sonoma)
+- iOS 15.0+
 - Xcode 15.0+
 - Swift 5.9+
 - SwiftWebServer framework (included as local dependency)
@@ -174,9 +174,6 @@ The example includes a simple authentication system:
 ### Default Users
 - **Username**: `johndoe`, **Password**: `password123`
 - **Username**: `janedoe`, **Password**: `password123`
-
-### Demo API Key
-- **Token**: `demo-api-key` (for testing protected endpoints)
 
 ### Authentication Flow
 1. **Login**: POST to `/api/auth/login` with username/password

@@ -18,11 +18,14 @@ final class DataManager {
     var users: [User] = []
     var posts: [Post] = []
     var comments: [Comment] = []
+    var authTokens: [AuthToken] = []
     
     // Statistics
     var totalUsers: Int { users.count }
     var totalPosts: Int { posts.count }
     var totalComments: Int { comments.count }
+    var totalAuthTokens: Int { authTokens.count }
+    var activeAuthTokens: Int { authTokens.filter { $0.isValid }.count }
     var publishedPosts: Int { posts.filter { $0.isPublished }.count }
     var approvedComments: Int { comments.filter { $0.isApproved }.count }
     
@@ -37,6 +40,7 @@ final class DataManager {
         loadUsers()
         loadPosts()
         loadComments()
+        loadAuthTokens()
     }
     
     private func loadUsers() {
@@ -66,6 +70,16 @@ final class DataManager {
         } catch {
             print("Error loading comments: \(error)")
             comments = []
+        }
+    }
+
+    private func loadAuthTokens() {
+        do {
+            let descriptor = FetchDescriptor<AuthToken>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
+            authTokens = try modelContext.fetch(descriptor)
+        } catch {
+            print("Error loading auth tokens: \(error)")
+            authTokens = []
         }
     }
     
@@ -316,6 +330,113 @@ final class DataManager {
         let hash = SHA256.hash(data: data)
         return hash.compactMap { String(format: "%02x", $0) }.joined()
     }
+
+    // MARK: - Token Management
+
+    func createAuthToken(for user: User, expiresIn: TimeInterval = 3600, deviceInfo: String? = nil) throws -> AuthToken {
+        let authToken = AuthToken.createToken(for: user, expiresIn: expiresIn, deviceInfo: deviceInfo)
+
+        modelContext.insert(authToken)
+        try modelContext.save()
+
+        authTokens.insert(authToken, at: 0)
+        return authToken
+    }
+
+    func validateAuthToken(_ tokenString: String) -> AuthToken? {
+        // First check in memory for performance
+        if let token = authTokens.first(where: { $0.token == tokenString && $0.isValid }) {
+            token.updateLastUsed()
+            try? modelContext.save()
+            return token
+        }
+
+        // Fallback to database query
+        do {
+            let predicate = #Predicate<AuthToken> { token in
+                token.token == tokenString && !token.isRevoked
+            }
+            let descriptor = FetchDescriptor<AuthToken>(predicate: predicate)
+            let tokens = try modelContext.fetch(descriptor)
+
+            if let token = tokens.first, token.isValid {
+                token.updateLastUsed()
+                try modelContext.save()
+
+                // Update in-memory array if not present
+                if !authTokens.contains(where: { $0.id == token.id }) {
+                    authTokens.insert(token, at: 0)
+                }
+
+                return token
+            }
+        } catch {
+            print("Error validating auth token: \(error)")
+        }
+
+        return nil
+    }
+
+    func getUserFromToken(_ tokenString: String) -> User? {
+        guard let authToken = validateAuthToken(tokenString) else { return nil }
+        return authToken.user
+    }
+
+    func revokeAuthToken(_ tokenString: String) throws {
+        if let token = authTokens.first(where: { $0.token == tokenString }) {
+            token.revoke()
+            try modelContext.save()
+            return
+        }
+
+        // Fallback to database query
+        let predicate = #Predicate<AuthToken> { token in
+            token.token == tokenString
+        }
+        let descriptor = FetchDescriptor<AuthToken>(predicate: predicate)
+        let tokens = try modelContext.fetch(descriptor)
+
+        if let token = tokens.first {
+            token.revoke()
+            try modelContext.save()
+
+            // Update in-memory array
+            if let index = authTokens.firstIndex(where: { $0.id == token.id }) {
+                authTokens[index] = token
+            }
+        }
+    }
+
+    func revokeAllUserTokens(for user: User) throws {
+        let userTokens = authTokens.filter { $0.user?.id == user.id && !$0.isRevoked }
+
+        for token in userTokens {
+            token.revoke()
+        }
+
+        try modelContext.save()
+        loadAuthTokens() // Refresh the list
+    }
+
+    func cleanupExpiredTokens() throws {
+        let expiredTokens = authTokens.filter { $0.isExpired || $0.isRevoked }
+
+        for token in expiredTokens {
+            modelContext.delete(token)
+        }
+
+        try modelContext.save()
+        authTokens.removeAll { $0.isExpired || $0.isRevoked }
+    }
+
+    func extendTokenExpiration(_ tokenString: String, by timeInterval: TimeInterval) throws {
+        guard let token = authTokens.first(where: { $0.token == tokenString && $0.isValid }) else {
+            throw AuthTokenError.tokenNotFound
+        }
+
+        token.extend(by: timeInterval)
+        try modelContext.save()
+    }
     
     // MARK: - Sample Data
     
@@ -372,7 +493,12 @@ final class DataManager {
     // MARK: - Data Management
 
     func clearAllData() throws {
-        // Delete all comments first (due to relationships)
+        // Delete all auth tokens first
+        for token in authTokens {
+            modelContext.delete(token)
+        }
+
+        // Delete all comments (due to relationships)
         for comment in comments {
             modelContext.delete(comment)
         }
@@ -390,6 +516,7 @@ final class DataManager {
         try modelContext.save()
 
         // Clear local arrays
+        authTokens.removeAll()
         comments.removeAll()
         posts.removeAll()
         users.removeAll()

@@ -130,7 +130,9 @@ public class Request {
         }
 
         // Check for required headers based on method
-        if method.hasBody {
+        if method.hasBody && body != nil {
+            // If we have a body but no Content-Length header, that's usually okay
+            // Most HTTP clients handle this automatically
             if let contentLength = headers[.contentLength], let length = Int(contentLength) {
                 if length > 0 && body == nil {
                     throw SwiftWebServerError.missingRequiredHeaders(["Content-Length with body"])

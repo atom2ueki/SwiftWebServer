@@ -17,7 +17,7 @@ struct APITestingView: View {
     @State private var responseBody = ""
     @State private var isLoading = false
     @State private var useAuth = false
-    @State private var authToken = "demo-api-key"
+    @State private var authToken = ""
     
     let httpMethods = ["GET", "POST", "PUT", "DELETE"]
     
@@ -79,9 +79,10 @@ struct APITestingView: View {
     // MARK: - Computed Properties for Panels
 
     private var requestPanel: some View {
-        VStack(alignment: .leading, spacing: 16) {
-                    Text("Request")
-                        .font(.headline)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                        Text("Request")
+                            .font(.headline)
                     
                     // Method and Endpoint
                     HStack {
@@ -104,9 +105,9 @@ struct APITestingView: View {
                             .fontWeight(.semibold)
                         
                         LazyVGrid(columns: [
-                            GridItem(.flexible()),
-                            GridItem(.flexible())
-                        ], spacing: 8) {
+                            GridItem(.flexible(), alignment: .leading),
+                            GridItem(.flexible(), alignment: .leading)
+                        ], alignment: .leading, spacing: 8) {
                             ForEach(commonEndpoints, id: \.self) { endpoint in
                                 Button(endpoint) {
                                     self.endpoint = endpoint
@@ -135,6 +136,7 @@ struct APITestingView: View {
                                 }
                                 .buttonStyle(.bordered)
                                 .font(.caption)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                             }
                         }
                     }
@@ -144,7 +146,7 @@ struct APITestingView: View {
                         Toggle("Use Authentication", isOn: $useAuth)
                         
                         if useAuth {
-                            TextField("Bearer Token", text: $authToken)
+                            TextField("Bearer Token (login first to get token)", text: $authToken)
                                 .textFieldStyle(.roundedBorder)
                         }
                     }
@@ -176,10 +178,11 @@ struct APITestingView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(isLoading || !webServerManager.isRunning)
-                    
-                    Spacer()
+
+                    Spacer(minLength: 20)
+            }
+            .padding()
         }
-        .padding()
         .frame(minWidth: 300)
     }
 
@@ -226,7 +229,7 @@ struct APITestingView: View {
         
         Task {
             do {
-                let baseURL = "http://localhost:\(webServerManager.currentPort)"
+                let baseURL = "http://localhost:\(String(webServerManager.currentPort))"
                 guard let url = URL(string: baseURL + endpoint) else {
                     await MainActor.run {
                         responseStatus = "Invalid URL"

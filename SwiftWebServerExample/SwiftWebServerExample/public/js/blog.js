@@ -1,12 +1,16 @@
 // SwiftWebServer Blog JavaScript
 
 let API_BASE = ''; // Will be loaded from config
+let authToken = null;
 
 // Initialize the blog
 document.addEventListener('DOMContentLoaded', async function() {
     // Load configuration first
     await loadConfig();
-    
+
+    // Check authentication status
+    checkAuthStatus();
+
     // Load published blog posts
     loadBlogPosts();
 });
@@ -34,7 +38,9 @@ async function loadBlogPosts() {
     
     try {
         // Fetch only published posts
-        const response = await fetch(`${API_BASE}/api/posts?published=true`);
+        const response = await fetch(`${API_BASE}/api/posts?published=true`, {
+            credentials: 'include' // Include cookies in cross-origin requests
+        });
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
@@ -121,8 +127,47 @@ function createPostCard(post) {
 
 // View individual blog post
 function viewPost(postId) {
-    // Navigate to the post detail page
-    window.location.href = `/post.html?id=${postId}`;
+    // Navigate to the post detail page using path parameters
+    window.location.href = `/post/${postId}`;
+}
+
+// Check authentication status and update UI
+function checkAuthStatus() {
+    authToken = getCookie('auth_token');
+    updateAuthButton();
+}
+
+// Update authentication button based on login status
+function updateAuthButton() {
+    const authBtn = document.getElementById('auth-btn');
+    const authIcon = document.getElementById('auth-icon');
+
+    if (authToken) {
+        authIcon.textContent = '⚙️'; // Admin icon
+        authBtn.title = 'Go to Admin';
+    } else {
+        authIcon.textContent = '👤'; // Login icon
+        authBtn.title = 'Login';
+    }
+}
+
+// Handle authentication button click
+function handleAuthClick() {
+    if (authToken) {
+        // User is logged in, go to admin
+        window.location.href = '/admin';
+    } else {
+        // User is not logged in, go to login
+        window.location.href = '/login';
+    }
+}
+
+// Utility function to get cookie
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
 }
 
 // Utility function to escape HTML

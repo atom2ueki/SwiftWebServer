@@ -12,12 +12,19 @@
     <div class="blog-container">
         <header class="blog-header">
             <div class="header-content">
-                <h1>📝 SwiftWebServer Blog</h1>
-                <nav class="blog-nav">
-                    <a href="/" class="nav-link">← Back to Blog</a>
-                    <a href="/login.html" class="nav-link">Login</a>
-                    <a href="/console.html" class="nav-link">Admin Console</a>
-                </nav>
+                <div class="header-left">
+                    <a href="/" class="back-btn">← Back to Blog</a>
+                </div>
+                <div class="header-center">
+                    <h1>📝 SwiftWebServer Blog</h1>
+                </div>
+                <div class="header-right">
+                    <div class="auth-section">
+                        <button id="auth-btn" class="auth-btn" onclick="handleAuthClick()">
+                            <span id="auth-icon">👤</span>
+                        </button>
+                    </div>
+                </div>
             </div>
         </header>
 
@@ -52,7 +59,7 @@
         </main>
 
         <footer class="blog-footer">
-            <p>Powered by SwiftWebServer • <a href="/console.html">Admin Console</a></p>
+            <p>Powered by <a href="https://github.com/atom2ueki/SwiftWebServer" target="_blank">SwiftWebServer</a> with ❤️</p>
         </footer>
     </div>
 

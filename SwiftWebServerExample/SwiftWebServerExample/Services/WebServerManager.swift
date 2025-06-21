@@ -8,6 +8,7 @@
 import Foundation
 import SwiftWebServer
 import Observation
+import UIKit
 
 @Observable
 final class WebServerManager {
@@ -110,86 +111,109 @@ final class WebServerManager {
         server.post("/api/auth/logout") { [weak self] req, res in
             self?.handleLogout(req, res)
         }
-        
-        // User routes
-        server.get("/api/users") { [weak self] req, res in
-            self?.handleGetUsers(req, res)
-        }
-        
-        server.post("/api/users") { [weak self] req, res in
-            self?.handleCreateUser(req, res)
-        }
-        
-        server.get("/api/users/{id}") { [weak self] req, res in
-            self?.handleGetUser(req, res)
-        }
-        
-        server.put("/api/users/{id}") { [weak self] req, res in
-            self?.handleUpdateUser(req, res)
-        }
-        
-        server.delete("/api/users/{id}") { [weak self] req, res in
-            self?.handleDeleteUser(req, res)
-        }
-        
-        // Post routes
-        server.get("/api/posts") { [weak self] req, res in
-            self?.handleGetPosts(req, res)
-        }
-        
-        server.post("/api/posts") { [weak self] req, res in
-            self?.handleCreatePost(req, res)
-        }
-        
-        server.get("/api/posts/{id}") { [weak self] req, res in
-            self?.handleGetPost(req, res)
-        }
-        
-        server.put("/api/posts/{id}") { [weak self] req, res in
-            self?.handleUpdatePost(req, res)
-        }
-        
-        server.delete("/api/posts/{id}") { [weak self] req, res in
-            self?.handleDeletePost(req, res)
-        }
-        
-        // Comment routes
-        server.get("/api/posts/{postId}/comments") { [weak self] req, res in
-            self?.handleGetComments(req, res)
-        }
-        
-        server.post("/api/posts/{postId}/comments") { [weak self] req, res in
-            self?.handleCreateComment(req, res)
-        }
-        
-        server.get("/api/comments/{id}") { [weak self] req, res in
-            self?.handleGetComment(req, res)
-        }
-        
-        server.put("/api/comments/{id}") { [weak self] req, res in
-            self?.handleUpdateComment(req, res)
-        }
-        
-        server.delete("/api/comments/{id}") { [weak self] req, res in
-            self?.handleDeleteComment(req, res)
-        }
-        
-        // Protected routes with authentication
+
+        // Protected routes with authentication - MUST be defined BEFORE route handlers
         let authMiddleware = BearerTokenMiddleware(options: BearerTokenOptions(
             validator: { [weak self] token in
-                return self?.dataManager.validateAuthToken(token) != nil
+                print("🔐 BearerTokenMiddleware validator called with token: \(token.prefix(10))...")
+                guard let self = self else {
+                    print("🔐 BearerTokenMiddleware validator: self is nil")
+                    return false
+                }
+                let authToken = self.dataManager.validateAuthToken(token)
+                let isValid = authToken != nil
+                print("🔐 BearerTokenMiddleware validator: token validation result = \(isValid)")
+                if let authToken = authToken {
+                    print("🔐 BearerTokenMiddleware validator: found valid token for user \(authToken.user?.username ?? "unknown")")
+                } else {
+                    print("🔐 BearerTokenMiddleware validator: token not found or invalid")
+                }
+                return isValid
             }
         ))
-        
+
+        // Token info endpoint (protected)
+        server.get("/api/auth/token-info", authMiddleware) { [weak self] req, res in
+            self?.handleTokenInfo(req, res)
+        }
+
+        print("🔧 Registering auth middleware for protected routes...")
         server.use(.post, "/api/posts", authMiddleware)
         server.use(.put, "/api/posts/{id}", authMiddleware)
         server.use(.delete, "/api/posts/{id}", authMiddleware)
         server.use(.post, "/api/posts/{postId}/comments", authMiddleware)
         server.use(.put, "/api/comments/{id}", authMiddleware)
         server.use(.delete, "/api/comments/{id}", authMiddleware)
-        
-        // Admin routes (protected)
         server.use(.get, "/api/admin/stats", authMiddleware)
+
+        // User routes
+        server.get("/api/users") { [weak self] req, res in
+            self?.handleGetUsers(req, res)
+        }
+
+        server.post("/api/users") { [weak self] req, res in
+            self?.handleCreateUser(req, res)
+        }
+
+        server.get("/api/users/{id}") { [weak self] req, res in
+            self?.handleGetUser(req, res)
+        }
+
+        server.put("/api/users/{id}") { [weak self] req, res in
+            self?.handleUpdateUser(req, res)
+        }
+
+        server.delete("/api/users/{id}") { [weak self] req, res in
+            self?.handleDeleteUser(req, res)
+        }
+
+        // Post routes
+        server.get("/api/posts") { [weak self] req, res in
+            self?.handleGetPosts(req, res)
+        }
+
+        server.post("/api/posts") { [weak self] req, res in
+            self?.handleCreatePost(req, res)
+        }
+
+        server.get("/api/posts/{id}") { [weak self] req, res in
+            self?.handleGetPost(req, res)
+        }
+
+        server.put("/api/posts/{id}") { [weak self] req, res in
+            self?.handleUpdatePost(req, res)
+        }
+
+        server.delete("/api/posts/{id}") { [weak self] req, res in
+            self?.handleDeletePost(req, res)
+        }
+
+        // Comment routes
+        server.get("/api/posts/{postId}/comments") { [weak self] req, res in
+            self?.handleGetComments(req, res)
+        }
+
+        server.post("/api/posts/{postId}/comments") { [weak self] req, res in
+            self?.handleCreateComment(req, res)
+        }
+
+        server.get("/api/comments/{id}") { [weak self] req, res in
+            self?.handleGetComment(req, res)
+        }
+
+        server.put("/api/comments/{id}") { [weak self] req, res in
+            self?.handleUpdateComment(req, res)
+        }
+
+        server.delete("/api/comments/{id}") { [weak self] req, res in
+            self?.handleDeleteComment(req, res)
+        }
+
+        server.put("/api/comments/{id}/approve", authMiddleware) { [weak self] req, res in
+            self?.handleApproveComment(req, res)
+        }
+
+        // Admin routes (protected)
         server.get("/api/admin/stats") { [weak self] req, res in
             self?.handleAdminStats(req, res)
         }
@@ -227,18 +251,14 @@ final class WebServerManager {
             self.serverStatus = "Running on localhost:\(serverPort)"
             self.addLogMessage("Server started on localhost:\(serverPort) (accessible via localhost)", type: .success)
 
-            // Create sample data if needed
-            if self.dataManager.totalUsers == 0 {
-                do {
-                    try self.dataManager.createSampleData()
-                    self.addLogMessage("Sample data created", type: .info)
-                } catch {
-                    self.addLogMessage("Failed to create sample data: \(error.localizedDescription)", type: .error)
-                }
-            }
-
             // Start token cleanup timer
             self.startTokenCleanupTimer()
+
+            // Haptic feedback for server start
+            DispatchQueue.main.async {
+                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                impactFeedback.impactOccurred()
+            }
         }
     }
     
@@ -252,6 +272,12 @@ final class WebServerManager {
         stopTokenCleanupTimer()
 
         addLogMessage("Server stopped", type: .info)
+
+        // Haptic feedback for server stop
+        DispatchQueue.main.async {
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
+        }
     }
     
     func restartServer() {

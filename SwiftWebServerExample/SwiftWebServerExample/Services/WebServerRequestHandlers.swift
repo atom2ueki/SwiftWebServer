@@ -42,7 +42,7 @@ extension WebServerManager {
     
     func handleServerInfo(_ req: Request, _ res: Response) {
         let serverInfo = [
-            "name": "SwiftWebServer Example",
+            "name": "SwiftWebServer Demo",
             "version": "1.0.0",
             "framework": "SwiftWebServer",
             "features": [
@@ -77,7 +77,17 @@ extension WebServerManager {
     // MARK: - Authentication Handlers
     
     func handleLogin(_ req: Request, _ res: Response) {
+        print("Login request received")
+        print("Content-Type: \(req.header("Content-Type") ?? "none")")
+        if let bodyData = req.body {
+            print("Body: \(String(data: bodyData, encoding: .utf8) ?? "invalid UTF-8")")
+        } else {
+            print("Body: none")
+        }
+        print("JSON Body: \(req.jsonBody?.description ?? "none")")
+
         guard let jsonBody = req.jsonBody else {
+            print("No JSON body found in request")
             res.badRequest("Invalid request body")
             return
         }
@@ -88,28 +98,17 @@ extension WebServerManager {
             
             if let user = dataManager.authenticateUser(username: loginRequest.username, password: loginRequest.password) {
                 do {
-                    // Create persistent auth token
-                    let authToken = try dataManager.createAuthToken(for: user, expiresIn: 3600, deviceInfo: req.header("User-Agent"))
+                    // Get existing valid token or create new one
+                    let authToken = try dataManager.getOrCreateAuthToken(for: user, expiresIn: 3600, deviceInfo: req.header("User-Agent"))
                     let response = LoginResponse(authToken: authToken, user: user)
 
-                    let responseData = try JSONEncoder().encode(response)
-                    let responseString = String(data: responseData, encoding: .utf8) ?? "{}"
-
-                    // Set authentication cookie with domain and path for cross-origin access
-                    res.cookie("auth_token", authToken.token, attributes: CookieAttributes(
-                        domain: "localhost", // Allow access from both localhost:3000 and localhost:8080
-                        path: "/", // Make cookie available to all paths
-                        expires: authToken.expiresAt,
-                        secure: false, // Set to true in production with HTTPS
-                        httpOnly: false, // Allow JavaScript access for frontend auth checks
-                        sameSite: .lax
-                    ))
-
-                    res.json(responseString)
+                    // Using Bearer token authentication - no cookies needed
+                    try res.json(response)
                     addLogMessage("User \(user.username) logged in with token \(authToken.token.prefix(10))...", type: .success)
                 } catch {
+                    print("Login error: \(error)")
                     res.internalServerError("Failed to create authentication token")
-                    addLogMessage("Failed to create auth token for user: \(user.username)", type: .error)
+                    addLogMessage("Failed to create auth token for user: \(user.username) - Error: \(error)", type: .error)
                 }
             } else {
                 res.unauthorized("Invalid credentials")
@@ -121,35 +120,59 @@ extension WebServerManager {
     }
     
     func handleLogout(_ req: Request, _ res: Response) {
-        // Try to revoke the token if present
-        if let tokenString = req.cookie("auth_token") {
+        // Try to revoke the token if present in Authorization header
+        if let authToken = req.authToken {
             do {
-                try dataManager.revokeAuthToken(tokenString)
-                addLogMessage("Auth token revoked: \(tokenString.prefix(10))...", type: .info)
+                try dataManager.revokeAuthToken(authToken)
+                addLogMessage("Auth token revoked: \(authToken.prefix(10))...", type: .info)
             } catch {
                 addLogMessage("Failed to revoke auth token: \(error)", type: .warning)
             }
         }
 
-        // Clear authentication cookie with same domain and path as login
-        res.cookie("auth_token", "", attributes: CookieAttributes(
-            domain: "localhost", // Match login cookie domain
-            path: "/", // Match login cookie path
-            expires: Date(timeIntervalSince1970: 0),
-            httpOnly: false // Match login cookie settings
-        ))
-
         res.json(jsonMessage("Logged out successfully"))
         addLogMessage("User logged out", type: .info)
     }
-    
+
+    func handleTokenInfo(_ req: Request, _ res: Response) {
+        guard let token = req.authToken,
+              let authToken = dataManager.validateAuthToken(token) else {
+            res.unauthorized("Invalid token")
+            return
+        }
+
+        let tokenInfo = [
+            "token": authToken.token,
+            "expiresAt": authToken.expiresAt.iso8601Formatted(),
+            "expiresIn": Int(authToken.remainingTime),
+            "isExpired": authToken.isExpired,
+            "isValid": authToken.isValid,
+            "user": [
+                "id": authToken.user?.id.uuidString ?? "",
+                "username": authToken.user?.username ?? "",
+                "firstName": authToken.user?.firstName ?? "",
+                "lastName": authToken.user?.lastName ?? ""
+            ]
+        ] as [String : Any]
+
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: tokenInfo)
+            let jsonString = String(data: jsonData, encoding: .utf8) ?? "{}"
+            res.json(jsonString)
+        } catch {
+            res.internalServerError("Failed to generate token info")
+        }
+    }
+
     // MARK: - User Handlers
     
     func handleGetUsers(_ req: Request, _ res: Response) {
         let users = dataManager.users.map { UserResponse(from: $0) }
         
         do {
-            let jsonData = try JSONEncoder().encode(users)
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+            let jsonData = try encoder.encode(users)
             let jsonString = String(data: jsonData, encoding: .utf8) ?? "[]"
             res.json(jsonString)
         } catch {
@@ -169,7 +192,9 @@ extension WebServerManager {
             let user = try dataManager.createUser(request: createRequest)
             let response = UserResponse(from: user)
             
-            let responseData = try JSONEncoder().encode(response)
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+            let responseData = try encoder.encode(response)
             let responseString = String(data: responseData, encoding: .utf8) ?? "{}"
             
             res.status(.created).json(responseString)
@@ -197,7 +222,9 @@ extension WebServerManager {
         
         do {
             let response = UserResponse(from: user)
-            let responseData = try JSONEncoder().encode(response)
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+            let responseData = try encoder.encode(response)
             let responseString = String(data: responseData, encoding: .utf8) ?? "{}"
             res.json(responseString)
         } catch {
@@ -228,7 +255,9 @@ extension WebServerManager {
             try dataManager.updateUser(user, request: updateRequest)
             
             let response = UserResponse(from: user)
-            let responseData = try JSONEncoder().encode(response)
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+            let responseData = try encoder.encode(response)
             let responseString = String(data: responseData, encoding: .utf8) ?? "{}"
             
             res.json(responseString)

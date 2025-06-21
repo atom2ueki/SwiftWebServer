@@ -133,7 +133,7 @@ function viewPost(postId) {
 
 // Check authentication status and update UI
 function checkAuthStatus() {
-    authToken = getCookie('auth_token');
+    authToken = localStorage.getItem('auth_token');
     updateAuthButton();
 }
 
@@ -141,12 +141,15 @@ function checkAuthStatus() {
 function updateAuthButton() {
     const authBtn = document.getElementById('auth-btn');
     const authIcon = document.getElementById('auth-icon');
+    const authText = document.getElementById('auth-text');
 
     if (authToken) {
         authIcon.textContent = '⚙️'; // Admin icon
+        if (authText) authText.textContent = 'Admin';
         authBtn.title = 'Go to Admin';
     } else {
         authIcon.textContent = '👤'; // Login icon
+        if (authText) authText.textContent = 'Login';
         authBtn.title = 'Login';
     }
 }
@@ -162,13 +165,7 @@ function handleAuthClick() {
     }
 }
 
-// Utility function to get cookie
-function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop().split(';').shift();
-    return null;
-}
+
 
 // Utility function to escape HTML
 function escapeHtml(text) {

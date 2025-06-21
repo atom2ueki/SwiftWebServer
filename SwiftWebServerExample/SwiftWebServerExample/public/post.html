@@ -13,9 +13,7 @@
         <header class="blog-header">
             <div class="header-content">
                 <div class="header-left">
-                    <a href="/" class="back-btn">← Back to Blog</a>
-                </div>
-                <div class="header-center">
+                    <a href="/" class="back-btn">←</a>
                     <h1>📝 SwiftWebServer Blog</h1>
                 </div>
                 <div class="header-right">
@@ -29,37 +27,41 @@
         </header>
 
         <main class="post-main">
-            <article class="post-article" id="post-article">
-                <div class="loading">Loading post...</div>
-            </article>
+            <div class="post-main-content">
+                <article class="post-article" id="post-article">
+                    <div class="loading">Loading post...</div>
+                </article>
 
-            <section class="comments-section" id="comments-section" style="display: none;">
-                <div class="comments-header">
-                    <h3>💬 Comments</h3>
-                    <div class="comments-count" id="comments-count">0 comments</div>
-                </div>
+                <section class="comments-section" id="comments-section" style="display: none;">
+                    <div class="comments-header">
+                        <h3>💬 Comments</h3>
+                        <div class="comments-count" id="comments-count">0 comments</div>
+                    </div>
 
-                <div class="comment-form" id="comment-form" style="display: none;">
-                    <h4>Leave a Comment</h4>
-                    <form onsubmit="submitComment(event)">
-                        <textarea id="comment-content" placeholder="Write your comment..." rows="4" required></textarea>
-                        <div class="form-actions">
-                            <button type="submit" class="btn btn-primary">Post Comment</button>
-                            <button type="button" class="btn btn-secondary" onclick="hideCommentForm()">Cancel</button>
-                        </div>
-                    </form>
-                </div>
+                    <div class="comment-form" id="comment-form" style="display: none;">
+                        <h4>Leave a Comment</h4>
+                        <form onsubmit="submitComment(event)">
+                            <textarea id="comment-content" placeholder="Write your comment..." rows="4" required></textarea>
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">Post Comment</button>
+                                <button type="button" class="btn btn-secondary" onclick="hideCommentForm()">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
 
-                <button class="btn btn-outline" onclick="showCommentForm()" id="add-comment-btn">Add Comment</button>
+                    <button class="btn btn-outline" onclick="showCommentForm()" id="add-comment-btn">Add Comment</button>
 
-                <div class="comments-list" id="comments-list">
-                    <!-- Comments will be loaded here -->
-                </div>
-            </section>
+                    <div class="comments-list" id="comments-list">
+                        <!-- Comments will be loaded here -->
+                    </div>
+                </section>
+            </div>
         </main>
 
         <footer class="blog-footer">
-            <p>Powered by <a href="https://github.com/atom2ueki/SwiftWebServer" target="_blank">SwiftWebServer</a> with ❤️</p>
+            <div class="blog-footer-content">
+                <p>Powered by <a href="https://github.com/atom2ueki/SwiftWebServer" target="_blank">SwiftWebServer</a> with ❤️</p>
+            </div>
         </footer>
     </div>
 

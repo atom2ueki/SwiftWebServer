@@ -4,69 +4,87 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SwiftWebServer Admin</title>
-    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/admin.css">
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
 </head>
 <body>
     <div class="container">
-        <header class="header">
-            <h1>📝 Blog Admin</h1>
-            <p>Manage your blog posts and content</p>
-            <div class="auth-section">
-                <div id="user-info" class="user-info">
-                    <span id="user-name">Loading...</span>
-                    <button onclick="logout()">Logout</button>
+        <header class="admin-header">
+            <div class="admin-header-content">
+                <div class="admin-header-left">
+                    <h1>📝 Blog Admin</h1>
+                </div>
+                <div class="admin-header-right">
+                    <div id="user-info" class="user-info">
+                        <span id="user-name">Loading...</span>
+                    </div>
+                    <a href="/" class="home-btn" title="Back to Blog">🏠</a>
+                    <button class="logout-btn" onclick="logout()" title="Logout">🚪</button>
                 </div>
             </div>
-            <nav class="blog-nav" style="margin-top: 1rem;">
-                <a href="/" class="nav-link">← Back to Blog</a>
-            </nav>
         </header>
 
-        <nav class="nav-tabs">
-            <button class="tab-button active" onclick="showTab('posts')">Posts</button>
-            <button class="tab-button" onclick="showTab('comments')">Comments</button>
-        </nav>
+        <!-- Posts Management -->
+        <div class="posts-section">
+            <div class="posts-section-content">
+                <div class="posts-header">
+                    <h2>📝 Posts Management</h2>
+                    <button class="btn btn-primary create-post-btn" onclick="showCreatePostForm()" id="create-post-btn">+ Create Post</button>
+                </div>
 
-        <!-- Posts Tab -->
-        <div id="posts-tab" class="tab-content active">
-            <div class="section-header">
-                <h2>📝 Posts Management</h2>
-                <button class="btn btn-primary" onclick="showCreatePostForm()" id="create-post-btn">Create Post</button>
+            <div id="create-post-form" class="create-post-form" style="display: none;">
+                <div class="form-card">
+                    <h3>Create New Post</h3>
+                    <form onsubmit="createPost(event)">
+                        <div class="form-group">
+                            <input type="text" id="new-post-title" placeholder="Post Title" required />
+                        </div>
+                        <div class="form-group">
+                            <textarea id="new-post-content" placeholder="Write your post content here..." rows="8" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="publish-toggle">
+                                <input type="checkbox" id="new-post-published" />
+                                <span class="toggle-text">Publish immediately</span>
+                            </label>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Create Post</button>
+                            <button type="button" class="btn btn-secondary" onclick="hideCreatePostForm()">Cancel</button>
+                        </div>
+                    </form>
+                </div>
             </div>
-            
-            <div id="create-post-form" class="form-section" style="display: none;">
-                <h3>Create New Post</h3>
-                <form onsubmit="createPost(event)">
-                    <input type="text" id="new-post-title" placeholder="Post Title" required />
-                    <textarea id="new-post-content" placeholder="Post Content" rows="6" required></textarea>
-                    <label>
-                        <input type="checkbox" id="new-post-published" />
-                        Publish immediately
-                    </label>
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">Create</button>
-                        <button type="button" class="btn btn-secondary" onclick="hideCreatePostForm()">Cancel</button>
+
+                <div id="posts-list" class="posts-list">
+                    <!-- Posts will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Post Detail Modal -->
+        <div id="post-detail-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modal-post-title">Post Title</h3>
+                    <button class="close-btn" onclick="closePostModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div id="modal-post-content"></div>
+                    <div class="post-actions">
+                        <button class="btn btn-primary" onclick="togglePostStatus()" id="toggle-status-btn">Toggle Status</button>
+                        <button class="btn btn-secondary" onclick="editPost()" id="edit-post-btn">Edit</button>
+                        <button class="btn btn-danger" onclick="deleteCurrentPost()" id="delete-post-btn">Delete</button>
                     </div>
-                </form>
-            </div>
-
-            <div id="posts-list" class="data-list">
-                <!-- Posts will be loaded here -->
-            </div>
-        </div>
-
-        <!-- Comments Tab -->
-        <div id="comments-tab" class="tab-content">
-            <div class="section-header">
-                <h2>💬 Comments Management</h2>
-            </div>
-
-            <div id="comments-list" class="data-list">
-                <!-- Comments will be loaded here -->
+                    <div class="comments-section">
+                        <h4>Comments</h4>
+                        <div id="post-comments" class="comments-list">
+                            <!-- Comments will be loaded here -->
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-
 
     </div>
 

@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     await loadConfig();
     
     // Check if user is already logged in
-    const authToken = getCookie('auth_token');
+    const authToken = localStorage.getItem('auth_token');
     if (authToken) {
         // Redirect to admin if already logged in
         window.location.href = '/admin';
@@ -71,7 +71,7 @@ async function handleLogin(event) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            credentials: 'include', // Include cookies in cross-origin requests
+
             body: JSON.stringify({
                 username: username,
                 password: password
@@ -79,25 +79,19 @@ async function handleLogin(event) {
         });
         
         const data = await response.json();
-        
+
         if (response.ok) {
-            // Login successful
+            // Login successful - get token from response and store in localStorage
+            if (data.token) {
+                localStorage.setItem('auth_token', data.token);
+                console.log('Auth token stored in localStorage:', data.token);
+            }
+
             showSuccess('Login successful! Redirecting...');
 
-            // The backend should have set the auth_token cookie
-            // Wait a moment for the cookie to be set, then redirect
+            // Redirect to admin
             setTimeout(() => {
-                // Check if cookie was set
-                const authToken = getCookie('auth_token');
-                console.log('Auth token after login:', authToken);
-
-                if (authToken) {
-                    console.log('Cookie found, redirecting to /admin');
-                    window.location.href = '/admin';
-                } else {
-                    console.warn('No auth token cookie found, redirecting anyway');
-                    window.location.href = '/admin';
-                }
+                window.location.href = '/admin';
             }, 500);
             
         } else {
@@ -140,18 +134,4 @@ function showSuccess(message) {
 function hideError() {
     const errorDiv = document.getElementById('login-error');
     errorDiv.style.display = 'none';
-}
-
-// Utility function to get cookie value
-function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop().split(';').shift();
-    return null;
-}
-
-// Handle demo credential buttons (if we want to add them later)
-function fillDemoCredentials() {
-    document.getElementById('username').value = 'johndoe';
-    document.getElementById('password').value = 'password123';
 }

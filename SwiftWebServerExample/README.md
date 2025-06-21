@@ -49,7 +49,6 @@ The application will automatically:
 - Initialize the SwiftData model container
 - Set up the data manager with Observation framework
 - Configure the web server with all middleware
-- Create sample data if none exists
 
 ## 🎯 How to Use
 

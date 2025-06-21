@@ -2,7 +2,7 @@
 //  MainView.swift
 //  SwiftWebServerExample
 //
-//  Main view with server management and controls
+//  Dashboard-style main view with cards for all functionality
 //
 
 import SwiftUI
@@ -11,226 +11,202 @@ struct MainView: View {
     @Bindable var dataManager: DataManager
     @Bindable var webServerManager: WebServerManager
     @State var frontendServerManager: FrontendServerManager
-    @State private var selectedTab = 0
     @State private var backendPort: String = "8080"
     @State private var frontendPort: String = "3000"
 
+    // Sheet presentation states
+    @State private var showingUsersManagement = false
+    @State private var showingPostsManagement = false
+    @State private var showingCommentsManagement = false
+    @State private var showingSessionsManagement = false
+
     var body: some View {
-        GeometryReader { geometry in
-            
-            VStack(spacing: 0) {
-                // Dual Server Control Header
-                ServersControlHeader(
-                    backendServerManager: webServerManager,
-                    frontendServerManager: frontendServerManager,
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                // Dashboard Grid with Server Cards
+                DashboardGrid(
                     dataManager: dataManager,
+                    webServerManager: webServerManager,
+                    frontendServerManager: frontendServerManager,
+                    showingUsersManagement: $showingUsersManagement,
+                    showingPostsManagement: $showingPostsManagement,
+                    showingCommentsManagement: $showingCommentsManagement,
+                    showingSessionsManagement: $showingSessionsManagement,
                     backendPort: $backendPort,
                     frontendPort: $frontendPort
                 )
+                .padding(.top, 8)
 
-                // Narrow screen: Use TabView for phone layout
-                TabView(selection: $selectedTab) {
-                    ConsoleView(
-                        backendServerManager: webServerManager,
-                        frontendServerManager: frontendServerManager
-                    )
-                    .tabItem {
-                        Image(systemName: "terminal")
-                        Text("Console")
-                    }
-                    .tag(0)
-
-                    DataManagementView(
-                        webServerManager: webServerManager,
-                        dataManager: dataManager
-                    )
-                    .tabItem {
-                        Image(systemName: "cylinder.split.1x2")
-                        Text("Data Management")
-                    }
-                    .tag(1)
-
-                    APITestingView(
-                        webServerManager: webServerManager
-                    )
-                    .tabItem {
-                        Image(systemName: "network")
-                        Text("API Testing")
-                    }
-                    .tag(2)
-                }
+                // Console View integrated directly
+                ConsoleView(
+                    backendServerManager: webServerManager,
+                    frontendServerManager: frontendServerManager
+                )
+                .padding(.top, 16)
             }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 20)
+        }
+        .background(Color(.systemGroupedBackground))
+        .sheet(isPresented: $showingUsersManagement) {
+            UsersManagementSheet(dataManager: dataManager)
+        }
+        .sheet(isPresented: $showingPostsManagement) {
+            PostsManagementSheet(dataManager: dataManager)
+        }
+        .sheet(isPresented: $showingCommentsManagement) {
+            CommentsManagementSheet(dataManager: dataManager)
+        }
+        .sheet(isPresented: $showingSessionsManagement) {
+            SessionsManagementSheet(dataManager: dataManager)
         }
     }
 }
 
-// MARK: - Servers Control Header
+// MARK: - Dashboard Grid
 
-struct ServersControlHeader: View {
-    @Bindable var backendServerManager: WebServerManager
-    @Bindable var frontendServerManager: FrontendServerManager
+struct DashboardGrid: View {
     @Bindable var dataManager: DataManager
+    @Bindable var webServerManager: WebServerManager
+    @Bindable var frontendServerManager: FrontendServerManager
+
+    @Binding var showingUsersManagement: Bool
+    @Binding var showingPostsManagement: Bool
+    @Binding var showingCommentsManagement: Bool
+    @Binding var showingSessionsManagement: Bool
     @Binding var backendPort: String
     @Binding var frontendPort: String
 
     var body: some View {
         VStack(spacing: 16) {
-            
-            // Use ViewThatFits or conditional layout based on screen size
-            ViewThatFits {
-                // Horizontal layout (preferred)
-                HStack(spacing: 16) {
-                    // Backend Server Card
-                    ServerStatusCard(
-                        title: "Backend API",
-                        isRunning: backendServerManager.isRunning,
-                        port: backendServerManager.currentPort,
-                        portBinding: $backendPort,
-                        onToggle: {
-                            if backendServerManager.isRunning {
-                                backendServerManager.stopServer()
-                            } else {
-                                if let port = UInt(backendPort), port > 0 && port < 65536 {
-                                    backendServerManager.startServer(port: port)
-                                } else {
-                                    backendServerManager.startServer()
-                                }
-                            }
-                        }
-                    )
+            // All Cards in Unified Grid
+            LazyVGrid(columns: [
+                GridItem(.flexible(), spacing: 16),
+                GridItem(.flexible(), spacing: 16)
+            ], spacing: 16) {
+                // Server Status Cards
+                ServerStatusCard(
+                    title: "Backend",
+                    isRunning: webServerManager.isRunning,
+                    port: webServerManager.currentPort,
+                    portBinding: $backendPort,
+                    onToggle: {
+                        toggleBackendServer()
+                    }
+                )
 
-                    // Frontend Server Card
-                    ServerStatusCard(
-                        title: "Frontend App",
-                        isRunning: frontendServerManager.isRunning,
-                        port: frontendServerManager.currentPort,
-                        portBinding: $frontendPort,
-                        onToggle: {
-                            if frontendServerManager.isRunning {
-                                frontendServerManager.stopServer()
-                            } else {
-                                if let port = UInt(frontendPort), port > 0 && port < 65536 {
-                                    frontendServerManager.startServer(port: port)
-                                } else {
-                                    frontendServerManager.startServer()
-                                }
-                            }
-                        }
-                    )
-                }
-                
-                // Vertical layout (fallback)
-                VStack(spacing: 16) {
-                    // Backend Server Card
-                    ServerStatusCard(
-                        title: "Backend API",
-                        isRunning: backendServerManager.isRunning,
-                        port: backendServerManager.currentPort,
-                        portBinding: $backendPort,
-                        onToggle: {
-                            if backendServerManager.isRunning {
-                                backendServerManager.stopServer()
-                            } else {
-                                if let port = UInt(backendPort), port > 0 && port < 65536 {
-                                    backendServerManager.startServer(port: port)
-                                } else {
-                                    backendServerManager.startServer()
-                                }
-                            }
-                        }
-                    )
+                ServerStatusCard(
+                    title: "Frontend",
+                    isRunning: frontendServerManager.isRunning,
+                    port: frontendServerManager.currentPort,
+                    portBinding: $frontendPort,
+                    onToggle: {
+                        toggleFrontendServer()
+                    }
+                )
 
-                    // Frontend Server Card
-                    ServerStatusCard(
-                        title: "Frontend App",
-                        isRunning: frontendServerManager.isRunning,
-                        port: frontendServerManager.currentPort,
-                        portBinding: $frontendPort,
-                        onToggle: {
-                            if frontendServerManager.isRunning {
-                                frontendServerManager.stopServer()
-                            } else {
-                                if let port = UInt(frontendPort), port > 0 && port < 65536 {
-                                    frontendServerManager.startServer(port: port)
-                                } else {
-                                    frontendServerManager.startServer()
-                                }
-                            }
-                        }
-                    )
-                }
+                // Data Management Cards
+                DashboardCard(
+                    title: "Users",
+                    count: dataManager.totalUsers,
+                    icon: "person.3.fill",
+                    color: .blue,
+                    action: { showingUsersManagement = true }
+                )
+
+                DashboardCard(
+                    title: "Posts",
+                    count: dataManager.totalPosts,
+                    icon: "doc.text.fill",
+                    color: .green,
+                    action: { showingPostsManagement = true }
+                )
+
+                DashboardCard(
+                    title: "Comments",
+                    count: dataManager.totalComments,
+                    icon: "bubble.left.fill",
+                    color: .orange,
+                    action: { showingCommentsManagement = true }
+                )
+
+                DashboardCard(
+                    title: "Sessions",
+                    count: dataManager.activeAuthTokens,
+                    icon: "key.fill",
+                    color: .purple,
+                    action: { showingSessionsManagement = true }
+                )
             }
         }
-        .padding(.horizontal, 20)
-        .background(Color(.secondarySystemBackground))
+    }
+
+    // MARK: - Server Control Methods
+
+    private func toggleBackendServer() {
+        if webServerManager.isRunning {
+            webServerManager.stopServer()
+        } else {
+            if let port = UInt(backendPort), port > 0 && port < 65536 {
+                webServerManager.startServer(port: port)
+            } else {
+                webServerManager.startServer()
+            }
+        }
+    }
+
+    private func toggleFrontendServer() {
+        if frontendServerManager.isRunning {
+            frontendServerManager.stopServer()
+        } else {
+            if let port = UInt(frontendPort), port > 0 && port < 65536 {
+                frontendServerManager.startServer(port: port)
+            } else {
+                frontendServerManager.startServer()
+            }
+        }
     }
 }
 
-// MARK: - Server Status Card
+// MARK: - Dashboard Card
 
-struct ServerStatusCard: View {
+struct DashboardCard: View {
     let title: String
-    let isRunning: Bool
-    let port: UInt
-    @Binding var portBinding: String
-    let onToggle: () -> Void
+    let count: Int
+    let icon: String
+    let color: Color
+    let action: () -> Void
 
     var body: some View {
-        VStack(spacing: 12) {
-            // Header
-            HStack {
-                Text(title)
-                    .font(.headline)
-                    .fontWeight(.semibold)
-
-                Spacer()
-
-                Circle()
-                    .fill(isRunning ? .green : .red)
-                    .frame(width: 12, height: 12)
-            }
-
-            // Status
-            HStack {
-                Text(isRunning ? "localhost:\(String(port))" : "Stopped")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-
-                Spacer()
-            }
-
-            // Controls
-            HStack(spacing: 12) {
-                // Port Configuration
-                if !isRunning {
-                    TextField("Port", text: $portBinding)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 70)
-                        .keyboardType(.numberPad)
+        Button(action: action) {
+            VStack(spacing: 12) {
+                HStack {
+                    Image(systemName: icon)
+                        .foregroundColor(color)
+                        .font(.title2)
+                    Spacer()
                 }
 
-                Spacer()
-
-                // Toggle Button
-                Button(action: onToggle) {
-                    HStack(spacing: 6) {
-                        Image(systemName: isRunning ? "stop.circle.fill" : "play.circle.fill")
-                        Text(isRunning ? "Stop" : "Start")
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(count)")
+                            .font(.title)
+                            .fontWeight(.bold)
+                            .foregroundColor(.primary)
+                        Text(title)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(isRunning ? Color.red : Color.green)
-                    .cornerRadius(8)
+                    Spacer()
                 }
-                .buttonStyle(.plain)
+
+                Spacer(minLength: 0)
             }
+            .frame(minHeight: 100, maxHeight: .infinity)
+            .padding(16)
+            .background(.card)
+            .cornerRadius(12)
         }
-        .padding(16)
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: Color(.systemGray4).opacity(0.3), radius: 2, x: 0, y: 1)
+        .buttonStyle(.plain)
     }
 }

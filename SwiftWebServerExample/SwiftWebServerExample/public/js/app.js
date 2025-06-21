@@ -9,8 +9,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Load configuration first
     await loadConfig();
 
-    // Check for existing auth token in cookies
-    authToken = getCookie('auth_token');
+    // Check for existing auth token in localStorage
+    authToken = localStorage.getItem('auth_token');
     if (authToken) {
         showUserInfo();
     } else {
@@ -100,6 +100,8 @@ async function login() {
         const data = await response.json();
         
         if (response.ok) {
+            // Store token in localStorage
+            localStorage.setItem('auth_token', data.token);
             authToken = data.token;
             currentUser = data.user;
             showUserInfo();
@@ -125,6 +127,8 @@ async function logout() {
         console.error('Logout error:', error);
     }
     
+    // Clear token from localStorage
+    localStorage.removeItem('auth_token');
     authToken = null;
     currentUser = null;
     showLoginForm();
@@ -480,9 +484,3 @@ function clearLogs() {
 }
 
 // Utility Functions
-function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop().split(';').shift();
-    return null;
-}

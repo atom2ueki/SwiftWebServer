@@ -126,8 +126,38 @@ public struct RouteMiddleware {
 
         // Check path match
         if let path = self.path {
-            // Simple path matching - could be enhanced with pattern matching
-            return request.path.hasPrefix(path)
+            return matchesPath(pattern: path, requestPath: request.path)
+        }
+
+        return true
+    }
+
+    /// Check if a request path matches a route pattern
+    /// Supports parameterized routes like "/api/posts/{id}"
+    private func matchesPath(pattern: String, requestPath: String) -> Bool {
+        // Parse pattern into segments
+        let patternSegments = PathSegment.parse(pattern: pattern)
+        let requestSegments = requestPath.split(separator: "/").map(String.init)
+
+        // Must have same number of segments
+        guard patternSegments.count == requestSegments.count else {
+            return false
+        }
+
+        // Check each segment
+        for (index, patternSegment) in patternSegments.enumerated() {
+            let requestSegment = requestSegments[index]
+
+            switch patternSegment {
+            case .literal(let value):
+                // Literal segments must match exactly
+                if value != requestSegment {
+                    return false
+                }
+            case .parameter(_):
+                // Parameter segments match any value
+                continue
+            }
         }
 
         return true

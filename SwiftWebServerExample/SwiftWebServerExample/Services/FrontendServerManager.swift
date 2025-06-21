@@ -8,6 +8,7 @@
 import Foundation
 import SwiftWebServer
 import Observation
+import UIKit
 
 @Observable
 final class FrontendServerManager {
@@ -117,6 +118,12 @@ final class FrontendServerManager {
             self.currentPort = serverPort
             self.serverStatus = "Running on localhost:\(serverPort)"
             self.addLogMessage("Frontend server started on localhost:\(serverPort) (accessible via localhost)", type: .success)
+
+            // Haptic feedback for server start
+            DispatchQueue.main.async {
+                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                impactFeedback.impactOccurred()
+            }
         }
     }
     
@@ -126,6 +133,12 @@ final class FrontendServerManager {
         currentPort = 0
         serverStatus = "Stopped"
         addLogMessage("Frontend server stopped", type: .info)
+
+        // Haptic feedback for server stop
+        DispatchQueue.main.async {
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
+        }
     }
     
     func restartServer() {

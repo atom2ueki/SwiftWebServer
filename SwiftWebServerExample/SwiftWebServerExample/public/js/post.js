@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     await loadConfig();
     
     // Check for auth token and update UI
-    authToken = getCookie('auth_token');
+    authToken = localStorage.getItem('auth_token');
     updateAuthButton();
 
     // Get post ID from URL path parameters
@@ -112,33 +112,41 @@ function createPostHTML(post) {
 async function loadComments(postId) {
     const commentsList = document.getElementById('comments-list');
     const commentsCount = document.getElementById('comments-count');
-    
+
     try {
-        const response = await fetch(`${API_BASE}/api/posts/${postId}/comments`, {
+        // Check if user is authenticated to show pending comments
+        const includeUnapproved = authToken ? '?include_unapproved=true' : '';
+        const headers = authToken ? {
+            'Authorization': `Bearer ${authToken}`
+        } : {};
+
+        const response = await fetch(`${API_BASE}/api/posts/${postId}/comments${includeUnapproved}`, {
+            headers,
             credentials: 'include' // Include cookies in cross-origin requests
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
-        
+
         const comments = await response.json();
-        
-        // Update comments count
-        const count = comments.length;
+
+        // Filter approved comments for count display
+        const approvedComments = comments.filter(comment => comment.comment.isApproved);
+        const count = approvedComments.length;
         commentsCount.textContent = `${count} comment${count !== 1 ? 's' : ''}`;
-        
+
         if (comments.length === 0) {
             commentsList.innerHTML = '<div class="no-comments">No comments yet. Be the first to comment!</div>';
         } else {
             // Sort comments by date (oldest first)
-            comments.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-            commentsList.innerHTML = comments.map(comment => createCommentHTML(comment)).join('');
+            comments.sort((a, b) => new Date(a.comment.createdAt) - new Date(b.comment.createdAt));
+            commentsList.innerHTML = comments.map(comment => createCommentHTML(comment.comment)).join('');
         }
-        
+
         // Show/hide comment form based on authentication
         updateCommentFormVisibility();
-        
+
     } catch (error) {
         console.error('Error loading comments:', error);
         commentsList.innerHTML = '<div class="no-comments">Unable to load comments.</div>';
@@ -155,14 +163,23 @@ function createCommentHTML(comment) {
         hour: '2-digit',
         minute: '2-digit'
     }) : 'Date unavailable';
-    
+
+    // Show pending status and approval button for admins
+    const isAdmin = authToken; // Simple check - in a real app you'd verify admin role
+    const statusBadge = !comment.isApproved ?
+        `<span class="comment-status pending">Pending Approval</span>` : '';
+    const approveButton = !comment.isApproved && isAdmin ?
+        `<button class="btn btn-approve" onclick="approveComment('${comment.id}')">Approve</button>` : '';
+
     return `
-        <div class="comment">
+        <div class="comment ${!comment.isApproved ? 'comment-pending' : ''}">
             <div class="comment-header">
                 <div class="comment-author">${escapeHtml(comment.author?.fullName || 'Anonymous')}</div>
                 <div class="comment-date">${formattedDate}</div>
+                ${statusBadge}
             </div>
             <div class="comment-content">${escapeHtml(comment.content)}</div>
+            ${approveButton ? `<div class="comment-actions">${approveButton}</div>` : ''}
         </div>
     `;
 }
@@ -214,7 +231,10 @@ async function submitComment(event) {
                 'Authorization': `Bearer ${authToken}`
             },
             credentials: 'include', // Include cookies in cross-origin requests
-            body: JSON.stringify({ content })
+            body: JSON.stringify({
+                content,
+                postId: currentPost.id
+            })
         });
         
         if (!response.ok) {
@@ -240,6 +260,35 @@ function updateCommentFormVisibility() {
         addCommentBtn.style.display = 'block';
     } else {
         addCommentBtn.style.display = 'none';
+    }
+}
+
+// Approve comment (admin function)
+async function approveComment(commentId) {
+    if (!authToken) {
+        alert('Authentication required');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/api/comments/${commentId}/approve`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${authToken}`
+            }
+        });
+
+        if (response.ok) {
+            // Reload comments to show updated status
+            await loadComments(currentPost.id);
+            alert('Comment approved successfully!');
+        } else {
+            const data = await response.json();
+            alert('Error approving comment: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error approving comment:', error);
+        alert('Unable to approve comment. Please try again.');
     }
 }
 
@@ -277,12 +326,7 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop().split(';').shift();
-    return null;
-}
+
 
 function isValidDate(date) {
     return date instanceof Date && !isNaN(date.getTime());

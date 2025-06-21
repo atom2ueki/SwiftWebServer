@@ -223,6 +223,56 @@ final class MiddlewareTests: XCTestCase {
         // Check that the response status was set to unauthorized
         XCTAssertEqual(response.statusCode, .unauthorized)
     }
+
+    func testRouteMiddlewareParameterizedPathMatching() throws {
+        // Test that RouteMiddleware correctly matches parameterized paths
+        let authMiddleware = BearerTokenMiddleware(options: BearerTokenOptions(
+            validator: { token in
+                return token == "valid-token"
+            }
+        ))
+
+        // Create route middleware for parameterized path
+        let routeMiddleware = RouteMiddleware(
+            middleware: authMiddleware,
+            path: "/api/posts/{id}",
+            method: .put
+        )
+
+        // Test matching request
+        let mockData = "PUT /api/posts/123 HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer valid-token\r\n\r\n".data(using: .utf8)!
+        let request = try Request(inputData: mockData)
+
+        // Should match the parameterized route
+        XCTAssertTrue(routeMiddleware.applies(to: request), "RouteMiddleware should match parameterized path /api/posts/{id} with request /api/posts/123")
+
+        // Test non-matching request (different path)
+        let nonMatchingData = "PUT /api/users/123 HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer valid-token\r\n\r\n".data(using: .utf8)!
+        let nonMatchingRequest = try Request(inputData: nonMatchingData)
+
+        // Should not match different path
+        XCTAssertFalse(routeMiddleware.applies(to: nonMatchingRequest), "RouteMiddleware should not match different path /api/users/123")
+
+        // Test non-matching request (different method)
+        let differentMethodData = "GET /api/posts/123 HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer valid-token\r\n\r\n".data(using: .utf8)!
+        let differentMethodRequest = try Request(inputData: differentMethodData)
+
+        // Should not match different method
+        XCTAssertFalse(routeMiddleware.applies(to: differentMethodRequest), "RouteMiddleware should not match different method GET")
+
+        // Test multiple parameters
+        let multiParamMiddleware = RouteMiddleware(
+            middleware: authMiddleware,
+            path: "/api/posts/{postId}/comments/{commentId}",
+            method: .delete
+        )
+
+        let multiParamData = "DELETE /api/posts/456/comments/789 HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer valid-token\r\n\r\n".data(using: .utf8)!
+        let multiParamRequest = try Request(inputData: multiParamData)
+
+        // Should match multiple parameter route
+        XCTAssertTrue(multiParamMiddleware.applies(to: multiParamRequest), "RouteMiddleware should match multiple parameter path")
+    }
 }
 
 // MARK: - Test Helper Classes

@@ -37,13 +37,19 @@ public class BearerTokenMiddleware: BaseMiddleware, ConfigurableMiddleware {
     }
 
     public override func execute(request: Request, response: Response, next: @escaping NextFunction) throws {
+        print("BearerTokenMiddleware: Processing request for \(request.method.rawValue) \(request.path)")
+
         guard let authHeader = request.header(options.tokenHeader) else {
+            print("BearerTokenMiddleware: No Authorization header found")
             try response.status(.unauthorized).json(["error": "Missing or invalid Authorization header"])
             return
         }
 
+        print("BearerTokenMiddleware: Authorization header found: \(authHeader)")
+
         // Check if header starts with Bearer prefix
         guard let prefix = options.tokenPrefix, authHeader.hasPrefix(prefix) else {
+            print("BearerTokenMiddleware: Authorization header doesn't start with Bearer prefix")
             try response.status(.unauthorized).json(["error": "Missing or invalid Authorization header"])
             return
         }
@@ -52,22 +58,36 @@ public class BearerTokenMiddleware: BaseMiddleware, ConfigurableMiddleware {
         let token = String(authHeader.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces)
 
         guard !token.isEmpty else {
+            print("BearerTokenMiddleware: Token is empty after extracting from header")
             try response.status(.unauthorized).json(["error": "Missing or invalid Authorization header"])
             return
         }
+
+        print("BearerTokenMiddleware: Extracted token: \(token)")
 
         // Validate token
         do {
             let isValid = try options.validator(token)
             if !isValid {
-                try response.status(.unauthorized).json(["error": "Invalid token"])
+                print("BearerTokenMiddleware: Token validation failed")
+                try response.status(.unauthorized).json([
+                    "error": "Invalid or expired token",
+                    "code": "TOKEN_INVALID",
+                    "message": "Please log in again"
+                ])
                 return
             }
         } catch {
-            try response.status(.unauthorized).json(["error": "Invalid token"])
+            print("BearerTokenMiddleware: Token validation threw error: \(error)")
+            try response.status(.unauthorized).json([
+                "error": "Invalid or expired token",
+                "code": "TOKEN_INVALID",
+                "message": "Please log in again"
+            ])
             return
         }
 
+        print("BearerTokenMiddleware: Token validation successful, setting authToken")
         // Store token in request for later use
         request.authToken = token
 

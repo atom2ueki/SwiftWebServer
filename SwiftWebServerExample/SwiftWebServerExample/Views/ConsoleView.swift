@@ -11,66 +11,90 @@ import UIKit
 struct ConsoleView: View {
     @Bindable var backendServerManager: WebServerManager
     @Bindable var frontendServerManager: FrontendServerManager
-    
+    @State private var showingDeleteConfirmation = false
+
     var body: some View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text("Server Console")
-                    .font(.title2)
+                Text("🪵 Server Console")
+                    .font(.headline)
                     .fontWeight(.semibold)
 
                 Spacer()
 
-                // Copy logs button
-                Button(action: copyAllLogs) {
-                    Image(systemName: "doc.on.doc")
-                        .font(.title3)
-                        .foregroundColor(.blue)
+                HStack(spacing: 12) {
+                    // Clear logs button
+                    Button(action: { showingDeleteConfirmation = true }) {
+                        Image(systemName: "trash")
+                            .font(.subheadline)
+                            .foregroundColor(.red)
+                    }
+
+                    // Copy logs button
+                    Button(action: copyAllLogsWithHaptic) {
+                        Image(systemName: "doc.on.doc")
+                            .font(.subheadline)
+                            .foregroundColor(.blue)
+                    }
                 }
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(Color(.secondarySystemBackground))
+            .background(.card)
 
             Divider()
 
             // Console Content
-            ScrollView {
+            ScrollView(.vertical, showsIndicators: true) {
                 LazyVStack(spacing: 0) {
                     let allLogs = getAllLogs()
-                    
+
                     if allLogs.isEmpty {
                         // Empty state
-                        VStack(spacing: 16) {
+                        VStack(spacing: 12) {
                             Image(systemName: "terminal")
-                                .font(.system(size: 48))
+                                .font(.system(size: 32))
                                 .foregroundColor(.secondary)
-                            
+
                             Text("No logs to display")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
-                            
-                            Text("Start the servers to see logs appear here")
                                 .font(.subheadline)
+                                .foregroundColor(.secondary)
+
+                            Text("Start the servers to see logs appear here")
+                                .font(.caption)
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)
                         }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .padding(40)
+                        .frame(maxWidth: .infinity)
+                        .padding(24)
                     } else {
-                        ForEach(allLogs, id: \.id) { logMessage in
+                        ForEach(allLogs.prefix(100), id: \.id) { logMessage in
                             LogMessageRow(logMessage: logMessage)
+                        }
+
+                        if allLogs.count > 100 {
+                            Text("... and \(allLogs.count - 100) more entries")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .padding(.vertical, 8)
                         }
                     }
                 }
             }
+            .frame(maxHeight: 500) // Increased height for better visibility
+            .background(.console)
         }
         .background(Color(.systemBackground))
         .cornerRadius(12)
-        .shadow(color: Color(.systemGray4).opacity(0.3), radius: 2, x: 0, y: 1)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        .alert("Clear All Logs", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Clear", role: .destructive) {
+                clearAllLogsWithHaptic()
+            }
+        } message: {
+            Text("Are you sure you want to clear all console logs? This action cannot be undone.")
+        }
     }
     
     // MARK: - Helper Methods
@@ -99,8 +123,29 @@ struct ConsoleView: View {
         let allLogsText = getAllLogs()
             .map { "[\($0.timestamp.formatted(date: .omitted, time: .standard))] \($0.message)" }
             .joined(separator: "\n")
-        
+
         UIPasteboard.general.string = allLogsText
+    }
+
+    private func copyAllLogsWithHaptic() {
+        // Light haptic feedback for copy action
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+
+        copyAllLogs()
+    }
+
+    private func clearAllLogs() {
+        backendServerManager.clearLogs()
+        frontendServerManager.clearLogs()
+    }
+
+    private func clearAllLogsWithHaptic() {
+        // Strong haptic feedback for delete action
+        let impactFeedback = UIImpactFeedbackGenerator(style: .heavy)
+        impactFeedback.impactOccurred()
+
+        clearAllLogs()
     }
 }
 
@@ -132,27 +177,10 @@ struct LogMessageRow: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 4)
-        .background(
-            Rectangle()
-                .fill(backgroundColorForLogType(logMessage.type))
-                .opacity(0.1)
-        )
+        .background(.clear)
     }
     
     private func colorForLogType(_ type: LogType) -> Color {
-        switch type {
-        case .info:
-            return .blue
-        case .success:
-            return .green
-        case .warning:
-            return .orange
-        case .error:
-            return .red
-        }
-    }
-    
-    private func backgroundColorForLogType(_ type: LogType) -> Color {
         switch type {
         case .info:
             return .blue

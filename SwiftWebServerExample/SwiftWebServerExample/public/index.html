@@ -11,27 +11,30 @@
     <div class="blog-container">
         <header class="blog-header">
             <div class="header-content">
-                <h1>📝 SwiftWebServer Blog</h1>
-                <p>A modern blog powered by SwiftWebServer</p>
-                <nav class="blog-nav">
-                    <a href="/" class="nav-link active">Home</a>
-                    <div class="auth-section">
-                        <button id="auth-btn" class="auth-btn" onclick="handleAuthClick()">
-                            <span id="auth-icon">👤</span>
-                        </button>
-                    </div>
-                </nav>
+                <div class="header-left">
+                    <h1>📝 SwiftWebServer Blog</h1>
+                </div>
+                <div class="header-right">
+                    <button id="auth-btn" class="auth-btn" onclick="handleAuthClick()">
+                        <span id="auth-icon">👤</span>
+                        <span id="auth-text">Login</span>
+                    </button>
+                </div>
             </div>
         </header>
 
         <main class="blog-main">
-            <div class="blog-posts" id="blog-posts">
-                <div class="loading">Loading posts...</div>
+            <div class="blog-main-content">
+                <div class="blog-posts" id="blog-posts">
+                    <div class="loading">Loading posts...</div>
+                </div>
             </div>
         </main>
 
         <footer class="blog-footer">
-            <p>Powered by <a href="https://github.com/atom2ueki/SwiftWebServer" target="_blank">SwiftWebServer</a> with ❤️</p>
+            <div class="blog-footer-content">
+                <p>Powered by <a href="https://github.com/atom2ueki/SwiftWebServer" target="_blank">SwiftWebServer</a> with ❤️</p>
+            </div>
         </footer>
     </div>
 

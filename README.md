@@ -1,6 +1,6 @@
 # SwiftWebServer
 
-A lightweight, Swift-based HTTP web server with middleware support, built using Swift Package Manager.
+A lightweight, Swift-based HTTP web server with middleware support.
 
 ## Features
 

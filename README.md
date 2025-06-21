@@ -18,6 +18,9 @@ A lightweight, Swift-based HTTP web server with middleware support, built using 
 - 🎯 **Error Handling**: Comprehensive error responses with proper HTTP status codes
 - 📱 **SwiftUI Integration**: Native iOS/macOS integration with example application
 
+## Demo (Blog WebApp)
+![SwiftWebServer Demo](https://github.com/atom2ueki/SwiftWebServer/raw/main/demo.gif)
+
 ## Quick Start
 
 ### Installation

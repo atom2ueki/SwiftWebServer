@@ -1,235 +1,165 @@
 # SwiftWebServer Example Application
 
-A comprehensive demonstration of the SwiftWebServer framework capabilities, featuring a full-stack web application with SwiftUI console interface, REST API, and interactive web frontend.
+A comprehensive demonstration of the SwiftWebServer framework capabilities, featuring a full-stack web application with SwiftUI console interface, dual-server architecture, and interactive blog platform.
 
 ## 🚀 Features Demonstrated
 
 ### Core Framework Features
-- **Middleware Architecture**: Chained middleware with request/response processing
-- **Routing System**: Path parameters, query parameters, and HTTP methods
-- **Authentication**: Bearer token authentication with protected routes
-- **Static File Serving**: HTML, CSS, JavaScript, and asset delivery
-- **Real-time Logging**: Comprehensive request/response logging with filtering
+- **Middleware Architecture**: Chained middleware with request/response processing and next() calls
+- **Routing System**: Path parameters (`/post/{id}`), query parameters, and HTTP methods
+- **Authentication**: Bearer token authentication with JWT tokens and protected routes
+- **Static File Serving**: HTML, CSS, JavaScript, and asset delivery with proper MIME types
+- **Real-time Logging**: Comprehensive request/response logging with filtering and haptic feedback
+- **CORS Support**: Cross-origin resource sharing with configurable headers
+- **Body Parsing**: JSON request body parsing middleware
+- **Cookie Management**: Cookie parsing and setting with secure options
+- **ETag Caching**: HTTP caching with ETag generation for performance
+- **Error Handling**: Custom error responses with proper HTTP status codes
 
-### Middleware Components
-- **LoggerMiddleware**: Configurable logging with custom output
-- **CORSMiddleware**: Cross-origin resource sharing with flexible configuration
-- **CookieMiddleware**: Cookie parsing and management with security attributes
-- **BodyParser**: JSON, form-urlencoded, and multipart data parsing
-- **ETagMiddleware**: Conditional requests with 304 Not Modified responses
-- **BearerTokenMiddleware**: JWT and custom token authentication
+### Application Architecture
+- **Dual Server Setup**: Separate backend API server (port 8080) and frontend static server (port 3000)
+- **SwiftUI Dashboard**: Native iOS interface with dashboard cards and server controls
+- **SwiftData Integration**: Modern data persistence with Observation framework
+- **Responsive Web UI**: Mobile-first blog interface with admin panel
+- **Session Management**: Token-based authentication with automatic cleanup
 
-### Data Management
-- **SwiftData Integration**: Modern data persistence with relationships
-- **Observation Framework**: Real-time UI updates with @Observable
-- **CRUD Operations**: Complete Create, Read, Update, Delete functionality
-- **Data Validation**: Input validation with proper error handling
+## 📱 SwiftUI Console Interface
 
-### Advanced Features
-- **File Upload Simulation**: Multipart form data handling demonstration
-- **Cookie Management**: Various cookie types with security attributes
-- **ETag Caching**: Conditional request handling for performance
-- **Error Handling**: Comprehensive error responses with proper HTTP status codes
-- **API Testing Interface**: Built-in API testing with live requests
+### Dashboard Layout
+The main interface features a dashboard-style layout with:
 
-## 📋 Requirements
+#### Server Status Cards
+- **Backend Server**: API server control with port configuration
+- **Frontend Server**: Static file server control with separate port
+- **Real-time Status**: Live server status with haptic feedback
+- **Quick Actions**: Start/stop servers with consistent UI heights
 
-- iOS 15.0+
-- Xcode 15.0+
-- Swift 5.9+
-- SwiftWebServer framework (included as local dependency)
+#### Data Management Cards
+- **Users Management**: User creation, editing, and statistics
+- **Posts Management**: Blog post creation with publish/draft status
+- **Comments Management**: Comment moderation and approval
+- **Sessions Management**: Active authentication token monitoring
 
-## 🛠 Installation & Setup
+#### Console View
+- **Live Logging**: Real-time request/response logs with timestamps
+- **Log Filtering**: Filter by request type, status code, or search terms
+- **Log Management**: Clear logs with confirmation and haptic feedback
+- **Export Options**: Copy logs to clipboard with haptic feedback
 
-1. **Clone or Download** the SwiftWebServer project
-2. **Open** `SwiftWebServerExample.xcodeproj` in Xcode
-3. **Build and Run** the project (⌘+R)
+## 🌐 Web Interface Features
 
-The application will automatically:
-- Initialize the SwiftData model container
-- Set up the data manager with Observation framework
-- Configure the web server with all middleware
+### Blog Platform
+The frontend serves a complete blog platform at `http://localhost:3000`:
 
-## 🎯 How to Use
+#### Public Blog (`/`)
+- **Responsive Design**: Mobile-first layout with clean typography
+- **Post Listings**: Published posts with metadata (author, date, reading time)
+- **Post Statistics**: View counts, comment counts, and reading time estimates
+- **Authentication UI**: Dynamic login/admin button in header
+- **Post Navigation**: Path parameter URLs (`/post/{id}`) for individual posts
 
-### 1. SwiftUI Console Interface
+#### Post Detail Pages (`/post/{id}`)
+- **Full Content Display**: Complete post content with proper formatting
+- **Comment System**: Interactive commenting with approval workflow
+- **Navigation**: Back button and admin access for authenticated users
+- **Responsive Layout**: Full-width content with consistent header/footer
 
-The main application window provides:
+#### Admin Panel (`/admin`)
+- **Authentication Required**: Protected routes with token validation
+- **Post Management**: Create, edit, publish/unpublish posts
+- **Comment Moderation**: Approve/reject comments per post
+- **User Information**: Display current admin user details
+- **Logout Functionality**: Secure session termination
 
-#### Server Control Panel
-- **Start/Stop Server**: Control server lifecycle
-- **Port Configuration**: Customize server port (default: 8080)
-- **Real-time Statistics**: Live data counts and server status
-- **Quick Actions**: Open web interface, clear logs
+#### Login System (`/login`)
+- **Clean Interface**: Focused login form with error handling
+- **Token Storage**: localStorage-based JWT token management
+- **Automatic Redirect**: Redirect to admin panel after successful login
+- **Error Feedback**: Clear error messages for failed attempts
 
-#### Console Tab
-- **Real-time Logs**: Live server activity with color-coded log levels
-- **Log Filtering**: Filter by log level (Info, Success, Warning, Error)
-- **Search Functionality**: Search through log messages
-- **Auto-scroll**: Automatic scrolling to latest logs
+## 🛠 Technical Implementation
 
-#### Data Tab
-- **User Management**: View all users with statistics
-- **Post Management**: Browse posts with metadata
-- **Comment Management**: Review comments with approval status
-- **Real-time Updates**: Live data updates using Observation framework
+### Backend API (Port 8080)
+The backend server provides a comprehensive REST API:
 
-#### Web Interface Tab
-- **Embedded Browser**: Preview the web interface within the app
-- **Direct Access**: Open in external browser
+#### Authentication Endpoints
+- `POST /api/auth/login` - User authentication with JWT token generation
+- `POST /api/auth/logout` - Token invalidation and session cleanup
 
-#### API Testing Tab
-- **Interactive Testing**: Test any API endpoint
-- **Method Selection**: Support for GET, POST, PUT, DELETE
-- **Authentication**: Bearer token authentication testing
-- **Response Viewer**: Formatted JSON response display
+#### Content Management API
+- `GET /api/posts` - List posts with optional `published=true` filter
+- `GET /api/posts/{id}` - Get individual post with view count increment
+- `POST /api/posts` - Create new posts (authenticated)
+- `PUT /api/posts/{id}` - Update posts including publish status (authenticated)
+- `DELETE /api/posts/{id}` - Delete posts (authenticated)
 
-### 2. Web Interface
+#### Comment System API
+- `GET /api/posts/{id}/comments` - Get approved comments for a post
+- `POST /api/posts/{id}/comments` - Submit new comments (authenticated)
+- `PUT /api/comments/{id}/approve` - Approve comments (authenticated)
+- `DELETE /api/comments/{id}` - Delete comments (authenticated)
 
-The server binds to all network interfaces (0.0.0.0), making it accessible from:
-- **Local access**: `http://localhost:8080` (or your configured port)
-- **Network access**: `http://[your-ip]:8080` (accessible from other devices on the same network)
-- **iPad Split View**: Perfect for side-by-side development with Safari
+#### User Management API
+- `GET /api/users` - List all users (authenticated)
+- `POST /api/users` - Create new users (authenticated)
+- `PUT /api/users/{id}` - Update user information (authenticated)
+- `DELETE /api/users/{id}` - Delete users (authenticated)
 
-#### Overview Dashboard
-- Server status and statistics
-- Feature showcase with active middleware
-- Real-time data metrics
+#### System Information
+- `GET /api/health` - Server health check
+- `GET /api/info` - Server information and statistics
 
-#### User Management
-- Create new users with validation
-- View user profiles and statistics
-- Demonstrates user CRUD operations
+### Frontend Server (Port 3000)
+Serves static files from the `public` folder:
+- HTML pages with responsive design
+- CSS stylesheets with mobile-first approach
+- JavaScript modules with modern ES6+ features
+- Static assets (favicon, images)
 
-#### Post Management
-- Create and manage blog posts
-- Publish/unpublish functionality
-- View counts and engagement metrics
+### Data Models
+Built with SwiftData for modern Swift persistence:
 
-#### API Testing
-- Interactive API endpoint testing
-- Live request/response viewer
-- Authentication demonstration
+#### User Model
+- Unique ID, username, email validation
+- Password hashing with secure storage
+- Relationships to posts, comments, and auth tokens
+- Activity status and timestamp tracking
 
-#### Server Logs
-- Real-time log display (simulated)
-- Log filtering and search
+#### Post Model
+- Title, content, and author relationships
+- Publish/draft status with publication timestamps
+- View count tracking and reading time calculation
+- Comment relationships with cascade deletion
 
-### 3. API Endpoints
+#### Comment Model
+- Content with author and post relationships
+- Approval workflow for moderation
+- Timestamp tracking for creation and updates
 
-#### Authentication
-```
-POST /api/auth/login
-POST /api/auth/logout
-```
+#### AuthToken Model
+- JWT token storage with expiration
+- User relationship for session management
+- Automatic cleanup of expired tokens
 
-#### Users
-```
-GET    /api/users
-POST   /api/users
-GET    /api/users/{id}
-PUT    /api/users/{id}
-DELETE /api/users/{id}
-```
+## 🚀 Getting Started
 
-#### Posts
-```
-GET    /api/posts
-POST   /api/posts          (auth required)
-GET    /api/posts/{id}
-PUT    /api/posts/{id}     (auth required)
-DELETE /api/posts/{id}     (auth required)
-```
+### Prerequisites
+- Xcode 15.0 or later
+- iOS 17.0 or later
+- Swift 5.9 or later
+- SwiftWebServer package (included as local dependency)
 
-#### Comments
-```
-GET    /api/posts/{postId}/comments
-POST   /api/posts/{postId}/comments  (auth required)
-GET    /api/comments/{id}
-PUT    /api/comments/{id}            (auth required)
-DELETE /api/comments/{id}            (auth required)
-```
+### Installation
+1. Open `SwiftWebServerExample.xcodeproj` in Xcode
+2. Build and run the project on iOS Simulator or device
+3. The app will automatically initialize SwiftData and configure servers
 
-#### Advanced Features Demo
-```
-GET  /api/demo/etag      - ETag caching demonstration
-GET  /api/demo/cookies   - Cookie management demo
-POST /api/demo/upload    - File upload simulation
-GET  /api/demo/cors      - CORS headers demonstration
-GET  /api/demo/error     - Error handling demo
-```
-
-#### System
-```
-GET /api/health          - Health check
-GET /api/info            - Server information
-GET /api/admin/stats     - Admin statistics (auth required)
-```
-
-## 🔐 Authentication
-
-The example includes a simple authentication system:
-
-### Default Users
-- **Username**: `johndoe`, **Password**: `password123`
-- **Username**: `janedoe`, **Password**: `password123`
-
-### Authentication Flow
-1. **Login**: POST to `/api/auth/login` with username/password
-2. **Token**: Receive bearer token in response
-3. **Usage**: Include `Authorization: Bearer <token>` header
-4. **Logout**: POST to `/api/auth/logout` to clear session
-
-## 🧪 Testing the Features
-
-### 1. Middleware Testing
-
-#### CORS
-```bash
-curl -H "Origin: https://example.com" http://localhost:8080/api/demo/cors
-```
-
-#### Cookies
-```bash
-curl -c cookies.txt -b cookies.txt http://localhost:8080/api/demo/cookies
-```
-
-#### ETag
-```bash
-# First request
-curl -i http://localhost:8080/api/demo/etag
-
-# Second request with ETag
-curl -H "If-None-Match: <etag-value>" http://localhost:8080/api/demo/etag
-```
-
-### 2. Authentication Testing
-
-```bash
-# Login
-curl -X POST -H "Content-Type: application/json" \
-  -d '{"username":"johndoe","password":"password123"}' \
-  http://localhost:8080/api/auth/login
-
-# Use token
-curl -H "Authorization: Bearer <token>" \
-  http://localhost:8080/api/posts
-```
-
-### 3. CRUD Operations
-
-```bash
-# Create user
-curl -X POST -H "Content-Type: application/json" \
-  -d '{"username":"testuser","email":"test@example.com","password":"password123","firstName":"Test","lastName":"User"}' \
-  http://localhost:8080/api/users
-
-# Create post (requires auth)
-curl -X POST -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <token>" \
-  -d '{"title":"Test Post","content":"This is a test post","isPublished":true}' \
-  http://localhost:8080/api/posts
-```
+### Usage
+1. **Start Servers**: Use the dashboard cards to start backend and frontend servers
+2. **Access Web Interface**: Tap "Open Frontend" to view the blog in Safari
+3. **Create Content**: Use the SwiftUI interface to create users and posts
+4. **Admin Access**: Login via web interface to access admin features
+5. **Monitor Activity**: View real-time logs and statistics in the console
 
 ## 📁 Project Structure
 
@@ -237,84 +167,122 @@ curl -X POST -H "Content-Type: application/json" \
 SwiftWebServerExample/
 ├── SwiftWebServerExample/
 │   ├── Models/
-│   │   ├── User.swift              # SwiftData user model
-│   │   ├── Post.swift              # SwiftData post model
-│   │   └── Comment.swift           # SwiftData comment model
+│   │   ├── User.swift              # SwiftData user model with relationships
+│   │   ├── Post.swift              # SwiftData post model with publishing
+│   │   ├── Comment.swift           # SwiftData comment model with approval
+│   │   └── AuthToken.swift         # JWT token model with expiration
 │   ├── Services/
 │   │   ├── DataManager.swift       # Data management with Observation
-│   │   ├── WebServerManager.swift  # Server configuration and control
+│   │   ├── WebServerManager.swift  # Backend server configuration
+│   │   ├── FrontendServerManager.swift # Frontend server management
 │   │   ├── WebServerRequestHandlers.swift    # Basic API handlers
 │   │   ├── WebServerPostHandlers.swift       # Post/Comment handlers
 │   │   └── WebServerAdvancedHandlers.swift   # Advanced feature demos
 │   ├── Views/
-│   │   ├── MainView.swift          # Main SwiftUI interface with toolbar
-│   │   ├── ServerConsoleView.swift # Real-time console logs
-│   │   ├── DataOverviewView.swift  # Data management interface
-│   │   ├── ContentManagementView.swift # CMS interface for content
-│   │   ├── CMSComponents.swift     # CMS row components and badges
-│   │   ├── CMSForms.swift          # CMS forms for creating/editing
-│   │   └── APITestingView.swift    # API testing interface
-│   ├── ContentView.swift           # Root view with initialization
-│   └── SwiftWebServerExampleApp.swift  # App entry point
-└── public/
-    ├── index.html                  # Main web interface
-    ├── css/styles.css              # Responsive styling
-    ├── js/app.js                   # Interactive JavaScript
-    └── favicon.ico                 # Site icon
+│   │   ├── MainView.swift          # Dashboard-style main interface
+│   │   ├── DashboardGrid.swift     # Grid layout for dashboard cards
+│   │   ├── DashboardCard.swift     # Reusable dashboard card component
+│   │   ├── ServerStatusCard.swift  # Server control cards
+│   │   ├── ConsoleView.swift       # Real-time logging interface
+│   │   ├── UsersManagementView.swift    # User management interface
+│   │   ├── PostsManagementView.swift    # Post management interface
+│   │   ├── CommentsManagementView.swift # Comment management interface
+│   │   └── SessionsManagementView.swift # Session management interface
+│   ├── public/                     # Frontend static files
+│   │   ├── index.html             # Blog homepage
+│   │   ├── post.html              # Post detail page
+│   │   ├── login.html             # Admin login page
+│   │   ├── admin.html             # Admin dashboard
+│   │   ├── 404.html               # Custom 404 error page
+│   │   ├── css/                   # Stylesheets
+│   │   │   ├── blog.css           # Blog styling
+│   │   │   ├── post.css           # Post detail styling
+│   │   │   ├── login.css          # Login page styling
+│   │   │   └── admin.css          # Admin panel styling
+│   │   └── js/                    # JavaScript modules
+│   │       ├── blog.js            # Blog functionality
+│   │       ├── post.js            # Post detail functionality
+│   │       ├── login.js           # Login functionality
+│   │       └── admin.js           # Admin panel functionality
+│   ├── SwiftWebServerExampleApp.swift # App entry point with SwiftData
+│   └── ContentView.swift         # Root view with manager initialization
+└── README.md                     # This documentation
 ```
 
-## 🎨 Architecture Highlights
+## 🎯 Key Learning Points
 
-### Observation Framework Integration
-- Real-time UI updates without manual refresh
-- Automatic data synchronization between views
-- Modern Swift concurrency patterns
+### Middleware Architecture
+- **Chained Processing**: Middleware functions that modify req/res and call next()
+- **Order Matters**: Middleware execution order affects request processing
+- **Error Handling**: Proper error responses with appropriate HTTP status codes
+- **Authentication**: Bearer token validation with protected route patterns
 
-### Middleware Chain
-```
-Request → Logger → CORS → Cookie → BodyParser → ETag → Auth → Route Handler
-Response ← Logger ← CORS ← Cookie ← BodyParser ← ETag ← Auth ← Route Handler
-```
+### Modern Swift Patterns
+- **Observation Framework**: Real-time UI updates with @Observable
+- **SwiftData Integration**: Modern Core Data replacement with relationships
+- **Async/Await**: Modern concurrency for network operations
+- **Error Handling**: Comprehensive error types and validation
 
-### Data Flow
-```
-SwiftUI Views ↔ DataManager (Observable) ↔ SwiftData ↔ WebServer ↔ API Clients
-```
+### Web Development Best Practices
+- **Responsive Design**: Mobile-first CSS with flexible layouts
+- **Progressive Enhancement**: JavaScript functionality that degrades gracefully
+- **Security**: Token-based authentication with proper validation
+- **Performance**: ETag caching and optimized asset delivery
+
+### iOS Development Integration
+- **Native UI**: SwiftUI dashboard with haptic feedback
+- **Background Processing**: Server management without blocking UI
+- **Data Persistence**: SwiftData with automatic relationship management
+- **Cross-Platform**: Web interface accessible from any device
 
 ## 🔧 Customization
 
-### Adding New Endpoints
-1. Add route in `WebServerManager.configureRoutes()`
-2. Implement handler method
-3. Update web interface if needed
-
-### Adding New Middleware
-1. Create middleware class implementing `Middleware` protocol
-2. Add to middleware chain in `WebServerManager.configureMiddleware()`
-3. Configure options as needed
+### Adding New API Endpoints
+1. Add handler methods to appropriate handler files
+2. Register routes in `WebServerManager.configureRoutes()`
+3. Update frontend JavaScript to consume new endpoints
 
 ### Extending Data Models
-1. Update SwiftData models with new properties
-2. Add validation in request/response models
-3. Update DataManager methods
-4. Refresh UI components
+1. Add properties to SwiftData models
+2. Update API request/response structures
+3. Modify frontend forms and displays accordingly
 
-## 📚 Learning Resources
+### Customizing UI
+1. Modify SwiftUI views for native interface changes
+2. Update CSS files for web interface styling
+3. Add new dashboard cards for additional functionality
 
-This example demonstrates:
-- Modern Swift web development patterns
-- SwiftData for persistence
-- Observation framework for reactive UIs
-- Middleware architecture design
-- RESTful API best practices
-- Authentication and authorization
-- Error handling and validation
-- Real-time logging and monitoring
+## 📚 Framework Features Showcased
+
+This example demonstrates the full capabilities of SwiftWebServer:
+- ✅ HTTP server with custom port configuration
+- ✅ Middleware architecture with chaining support
+- ✅ Static file serving with proper MIME types
+- ✅ JSON API endpoints with request/response handling
+- ✅ Path parameter routing (`/post/{id}`)
+- ✅ Query parameter parsing
+- ✅ Request body parsing (JSON)
+- ✅ Authentication middleware with Bearer tokens
+- ✅ CORS support for cross-origin requests
+- ✅ Cookie parsing and management
+- ✅ ETag caching for performance
+- ✅ Custom error pages (404.html)
+- ✅ Real-time logging with filtering
+- ✅ Server lifecycle management
+- ✅ Integration with SwiftUI and SwiftData
 
 ## 🤝 Contributing
 
-This example is part of the SwiftWebServer framework. Contributions and improvements are welcome!
+This example serves as both a demonstration and a starting point for your own SwiftWebServer applications. Feel free to:
+- Extend the functionality with new features
+- Improve the UI/UX design
+- Add additional middleware examples
+- Enhance the blog platform capabilities
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the main SwiftWebServer LICENSE file for details.
+This example application is provided as part of the SwiftWebServer framework for educational and demonstration purposes.
+
+---
+
+**Powered by [SwiftWebServer](https://github.com/atom2ueki/SwiftWebServer) with ❤️**

@@ -103,6 +103,23 @@ Middleware executes in the order it's registered using `server.use()`, and respo
 
 SwiftWebServer comes with several built-in middleware components:
 
+### BodyParser
+Parses JSON and form data from request bodies.
+
+```swift
+server.use(BodyParser())
+
+server.post("/api/users") { req, res in
+    if let jsonBody = req.jsonBody {
+        // Handle JSON data
+        let userData = jsonBody
+    } else if let formBody = req.formBody {
+        // Handle form data
+        let name = formBody["name"]
+    }
+}
+```
+
 ### LoggerMiddleware
 Logs incoming requests and outgoing responses with configurable detail levels.
 
@@ -187,23 +204,6 @@ server.use(ETagMiddleware(options: ETagOptions(
 server.get("/data") { req, res in
     let content = generateDynamicContent()
     res.sendWithETag(content, contentType: .applicationJson)
-}
-```
-
-### BodyParser
-Parses JSON and form data from request bodies.
-
-```swift
-server.use(BodyParser())
-
-server.post("/api/users") { req, res in
-    if let jsonBody = req.jsonBody {
-        // Handle JSON data
-        let userData = jsonBody
-    } else if let formBody = req.formBody {
-        // Handle form data
-        let name = formBody["name"]
-    }
 }
 ```
 

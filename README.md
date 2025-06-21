@@ -6,14 +6,17 @@ A lightweight, Swift-based HTTP web server with middleware support, built using 
 
 - 🚀 **Lightweight & Fast**: Minimal overhead with efficient request handling
 - 🔧 **Middleware System**: Extensible middleware architecture for request/response processing
-- 🛣️ **Route Handling**: Support for path parameters and multiple HTTP methods
+- 🛣️ **Route Handling**: Support for path parameters (`/users/{id}`) and multiple HTTP methods
 - 🦾 **Body Parsing**: JSON and form data parsing middleware
 - 📁 **Static File Serving**: Built-in static file serving with automatic MIME type detection
-- 🍪 **Cookie Support**: Full cookie parsing and setting capabilities
-- 🔒 **Authentication**: Bearer token authentication middleware
-- 🌐 **CORS Support**: Cross-Origin Resource Sharing middleware
-- 📝 **Logging**: Configurable request/response logging
-- 🏷️ **ETag Support**: Conditional requests with 304 Not Modified responses
+- 🍪 **Cookie Support**: Full cookie parsing and setting capabilities with secure attributes
+- 🔒 **Authentication**: Bearer token authentication middleware with JWT support
+- 🌐 **CORS Support**: Cross-Origin Resource Sharing middleware with configurable options
+- 📝 **Logging**: Configurable request/response logging with detailed output options
+- 🏷️ **ETag Support**: Conditional requests with 304 Not Modified responses for caching
+- 🔄 **HTTP Redirects**: Support for temporary and permanent redirects with proper status codes
+- 🎯 **Error Handling**: Comprehensive error responses with proper HTTP status codes
+- 📱 **SwiftUI Integration**: Native iOS/macOS integration with example application
 
 ## Quick Start
 
@@ -23,7 +26,7 @@ Add SwiftWebServer to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/yourusername/SwiftWebServer.git", from: "1.0.0")
+    .package(url: "https://github.com/atom2ueki/SwiftWebServer.git", from: "1.0.0")
 ]
 ```
 
@@ -148,7 +151,7 @@ server.get("/login") { req, res in
 ```
 
 ### BearerTokenMiddleware
-Provides Bearer token authentication for protected routes.
+Provides Bearer token authentication for protected routes with JWT support.
 
 ```swift
 let authMiddleware = BearerTokenMiddleware(options: BearerTokenOptions(
@@ -160,7 +163,12 @@ let authMiddleware = BearerTokenMiddleware(options: BearerTokenOptions(
 
 // Apply to specific routes
 server.get("/protected", middleware: [authMiddleware]) { req, res in
-    res.json("""{"message": "Access granted"}""")
+    // Access authenticated user info
+    if let authToken = req.middlewareStorage["authToken"] as? String {
+        res.json("""{"message": "Access granted", "token": "\(authToken)"}""")
+    } else {
+        res.json("""{"message": "Access granted"}""")
+    }
 }
 ```
 
@@ -226,6 +234,33 @@ class TimestampMiddleware: BaseMiddleware {
 
 // Usage
 server.use(TimestampMiddleware())
+```
+
+### Middleware Data Sharing
+
+Middleware can share data through the request's `middlewareStorage` dictionary:
+
+```swift
+// In authentication middleware
+class AuthMiddleware: BaseMiddleware {
+    override func execute(request: Request, response: Response, next: @escaping NextFunction) throws {
+        // Validate token and store user info
+        if let user = validateAndGetUser(from: request) {
+            request.middlewareStorage["currentUser"] = user
+            request.middlewareStorage["isAuthenticated"] = true
+        }
+        try next()
+    }
+}
+
+// In route handler
+server.get("/profile") { req, res in
+    if let user = req.middlewareStorage["currentUser"] as? User {
+        res.json(user.toJSON())
+    } else {
+        res.status(.unauthorized).json(["error": "Not authenticated"])
+    }
+}
 ```
 
 ### Configurable Middleware Example
@@ -382,7 +417,7 @@ let server = SwiftWebServer(port: 8080) // With default port
 ```swift
 try server.start(port: 8080)    // Start server on specified port
 server.stop()                   // Stop the server
-server.status                   // Get current server status
+server.status                   // Get current server status (.stopped, .starting, .running, .stopping)
 server.currentPort              // Get current port (0 if not running)
 server.isRunning                // Check if server is running
 ```
@@ -420,6 +455,7 @@ req.queryParameters          // Query parameters ["page": "1"]
 req.cookies                  // Parsed cookies ["session": "abc123"]
 req.jsonBody                 // Parsed JSON body (if BodyParser middleware is used)
 req.formBody                 // Parsed form data (if BodyParser middleware is used)
+req.middlewareStorage        // Generic storage for middleware data sharing
 
 // Convenience methods
 req.header("Content-Type")   // Get header by name
@@ -473,6 +509,11 @@ res.redirectPermanent("/new-path") // Permanent redirect (301)
 res.redirectTemporary("/new-path") // Temporary redirect (302)
 res.redirectTemporaryPreserveMethod("/new-path")  // 307 redirect
 res.redirectPermanentPreserveMethod("/new-path")  // 308 redirect
+
+// Error responses with messages
+res.badRequest("Invalid input data")
+res.notFound("Resource not found")
+res.internalServerError("Something went wrong")
 
 // Method chaining
 res.status(.ok)
@@ -588,35 +629,51 @@ do {
 
 ## Example Application
 
-The SwiftWebServerExample project demonstrates a complete blog application with both frontend and backend servers:
+The SwiftWebServerExample project demonstrates a comprehensive blog application with both frontend and backend servers, featuring a native SwiftUI interface:
 
 ### Architecture
 
-- **Backend Server (Port 8080)**: REST API with authentication, user management, and blog posts
-- **Frontend Server (Port 3000)**: Serves static HTML/CSS/JS files and acts as a proxy to the backend
+- **Backend Server (Port 8080)**: REST API with JWT authentication, user management, and blog posts
+- **Frontend Server (Port 3000)**: Serves static HTML/CSS/JS files with responsive design
+- **SwiftUI Dashboard**: Native iOS interface with server controls and data management
+- **SwiftData Integration**: Modern data persistence with automatic relationship management
 
-### Features
+### Key Features
 
-- **Blog Interface**: Public blog page displaying posts
-- **Admin Login**: Secure login page with authentication
+- **Blog Interface**: Public blog page with responsive design and post details
+- **Admin Login**: Secure login with JWT token authentication
 - **Admin Dashboard**: Clean blog management interface for authenticated users
-- **Dual Server Setup**: Separate frontend and backend servers for realistic deployment simulation
+- **Session Management**: Automatic token cleanup and session tracking
+- **Real-time Logging**: Request/response logging with filtering and haptic feedback
+- **Data Management**: Native SwiftUI interface for managing users, posts, and comments
+- **Dual Server Setup**: Separate frontend and backend servers for realistic deployment
+
+### SwiftUI Console Features
+
+- **Dashboard Layout**: Card-based interface with server status and data management
+- **Server Controls**: Start/stop servers with real-time status updates
+- **Data Management**: Create, edit, and delete users, posts, and comments
+- **Session Monitoring**: View and manage active authentication tokens
+- **Console Logging**: Real-time request/response logs with filtering options
+- **Haptic Feedback**: Enhanced user experience with tactile feedback
 
 ### Authentication Flow
 
 1. Users access the blog at `http://localhost:3000/`
 2. Admin login is available at `http://localhost:3000/login.html`
-3. After successful authentication, users are redirected to `http://localhost:3000/admin.html`
-4. The admin page uses HTTP redirects to ensure proper authentication flow
-5. Logout redirects back to the login page
+3. JWT tokens are issued upon successful authentication
+4. Admin dashboard at `http://localhost:3000/admin.html` validates tokens
+5. Automatic logout when tokens expire
+6. Session management through SwiftUI interface
 
 ### Running the Example
 
 1. Open `SwiftWebServerExample.xcodeproj` in Xcode
-2. Run the project on iOS/macOS
-3. Start both servers using the native controls
+2. Run the project on iOS Simulator or device (iOS 17.0+)
+3. Start both servers using the dashboard controls
 4. Access the blog at `http://localhost:3000/`
 5. Use demo credentials: `johndoe` / `password123`
+6. Manage data through the native SwiftUI interface
 
 ### Development Setup
 
@@ -624,6 +681,63 @@ The SwiftWebServerExample project demonstrates a complete blog application with 
 2. Open in Xcode or use Swift Package Manager
 3. Run tests: `swift test`
 4. Build: `swift build`
+
+### Requirements
+
+- **iOS**: 17.0+ (for SwiftUI example app)
+- **macOS**: 14.0+ (for command-line usage)
+- **Xcode**: 15.0+
+- **Swift**: 5.9+
+
+## Recent Updates
+
+### Version 1.0.0 Features
+
+- ✅ **Session Management**: Automatic JWT token cleanup and session tracking
+- ✅ **Enhanced Authentication**: Improved Bearer token middleware with detailed error responses
+- ✅ **SwiftUI Integration**: Native iOS dashboard with haptic feedback and real-time updates
+- ✅ **SwiftData Support**: Modern data persistence with automatic relationship management
+- ✅ **Responsive Design**: Mobile-first web interface with adaptive layouts
+- ✅ **Error Handling**: Comprehensive error responses with proper HTTP status codes
+- ✅ **Middleware Improvements**: Enhanced logging, CORS, and cookie handling
+- ✅ **HTTP Redirects**: Full support for temporary and permanent redirects
+
+## Testing
+
+SwiftWebServer includes comprehensive unit tests for all middleware and core functionality:
+
+```bash
+# Run all tests
+swift test
+
+# Run specific test suite
+swift test --filter SwiftWebServerTests
+
+# Run with verbose output
+swift test --verbose
+```
+
+### Test Coverage
+
+- ✅ **Core Server**: Server lifecycle, routing, and request handling
+- ✅ **Middleware**: All built-in middleware components
+- ✅ **HTTP Methods**: GET, POST, PUT, DELETE, and other HTTP methods
+- ✅ **Path Parameters**: Route matching and parameter extraction
+- ✅ **Authentication**: Bearer token validation and error handling
+- ✅ **CORS**: Cross-origin request handling
+- ✅ **Cookie Management**: Cookie parsing and setting
+- ✅ **Error Handling**: Proper error responses and status codes
+
+## Contributing
+
+We welcome contributions! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+
+### Development Guidelines
+
+1. **Code Style**: Follow Swift conventions and use SwiftLint
+2. **Testing**: Add tests for new features and bug fixes
+3. **Documentation**: Update README and inline documentation
+4. **Compatibility**: Maintain backward compatibility when possible
 
 ## License
 

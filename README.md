@@ -16,6 +16,8 @@ A lightweight, Swift-based HTTP web server with middleware support.
 - 🏷️ **ETag Support**: Conditional requests with 304 Not Modified responses for caching
 - 🔄 **HTTP Redirects**: Support for temporary and permanent redirects with proper status codes
 - 🎯 **Error Handling**: Comprehensive error responses with proper HTTP status codes
+- 🔁 **Loopback Bind**: Optional `host:` parameter for loopback-only binds (OAuth callbacks, IPC)
+- 🧵 **`@MainActor`-isolated**: `SwiftWebServer` is `Sendable` and explicit about its run-loop contract
 - 📱 **SwiftUI Integration**: Native iOS/macOS integration with example application
 
 ## Demo (Blog WebApp)
@@ -29,7 +31,7 @@ Add SwiftWebServer to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/atom2ueki/SwiftWebServer.git", from: "1.0.0")
+    .package(url: "https://github.com/atom2ueki/SwiftWebServer.git", from: "0.3.1")
 ]
 ```
 
@@ -38,39 +40,61 @@ dependencies: [
 ```swift
 import SwiftWebServer
 
-let server = SwiftWebServer()
+@MainActor
+func startServer() {
+    let server = SwiftWebServer()
 
-// Add middleware
-server.use(LoggerMiddleware())
-server.use(CORSMiddleware())
+    // Add middleware
+    server.use(LoggerMiddleware())
+    server.use(CORSMiddleware())
 
-// Define routes
-server.get("/hello") { req, res in
-    res.send("Hello, World!")
-}
-
-server.get("/users/{id}") { req, res in
-    let userId = req.pathParameters["id"] ?? "unknown"
-    res.json("""
-    {
-        "userId": "\(userId)",
-        "message": "User details"
+    // Define routes
+    server.get("/hello") { req, res in
+        res.send("Hello, World!")
     }
-    """)
-}
 
-// Start server
-try server.start(port: 8080)
-print("Server running on http://localhost:8080")
+    server.get("/users/{id}") { req, res in
+        let userId = req.pathParameters["id"] ?? "unknown"
+        res.json("""
+        {
+            "userId": "\(userId)",
+            "message": "User details"
+        }
+        """)
+    }
+
+    // Start listening. The completion fires once `status` reaches `.running`.
+    server.listen(8080) {
+        print("Server running on http://localhost:8080")
+    }
+}
 ```
+
+> `SwiftWebServer` is `@MainActor`-isolated. Call `listen(_:)` and `close()`
+> from the main actor (which has its own run loop). All route registration
+> and middleware/static-directory configuration must happen *before*
+> `listen(_:)` — calling them on a running server traps with a clear message.
+
+#### Loopback-only bind
+
+For flows that must not be reachable on the LAN (OAuth callbacks per
+RFC 8252 §7.3, IPC, dev tooling), pass `host: "localhost"`:
+
+```swift
+server.listen(8080, host: "localhost") {
+    print("Server running on http://localhost:8080 (loopback only)")
+}
+```
+
+Other supported `host:` values: `"127.0.0.1"`, `"::1"`, `"0.0.0.0"`, `"::"`,
+or any IPv4/IPv6 literal. Hostnames other than `"localhost"` are not
+resolved — pass IP literals.
 
 ## Architecture Overview
 
 SwiftWebServer follows a middleware-based architecture where requests flow through a chain of middleware functions before reaching route handlers, and responses flow back through the same chain.
 
 ### Request/Response Workflow
-
-The diagram above shows how requests flow through SwiftWebServer:
 
 1. **Client Request**: HTTP request arrives at the server
 2. **Connection Handler**: Accepts and manages the connection
@@ -182,7 +206,7 @@ let authMiddleware = BearerTokenMiddleware(options: BearerTokenOptions(
 ))
 
 // Apply to specific routes
-server.get("/protected", middleware: [authMiddleware]) { req, res in
+server.get("/protected", authMiddleware) { req, res in
     // Access authenticated user info
     if let authToken = req.middlewareStorage["authToken"] as? String {
         res.json("""{"message": "Access granted", "token": "\(authToken)"}""")
@@ -410,33 +434,54 @@ server.use(staticDirectory: "./uploads")
 
 ### SwiftWebServer Class
 
+`SwiftWebServer` is `@MainActor`-isolated and `Sendable`. Configuration is
+read-only after `listen(_:)` is called — registering routes, middleware, or
+static directories on a running server traps with a precondition failure.
+
 #### Initialization
+
 ```swift
-let server = SwiftWebServer()           // Basic initialization
-let server = SwiftWebServer(port: 8080) // With default port
+let server = SwiftWebServer()
 ```
 
 #### Server Control
+
 ```swift
-try server.start(port: 8080)    // Start server on specified port
-server.stop()                   // Stop the server
-server.status                   // Get current server status (.stopped, .starting, .running, .stopping)
-server.currentPort              // Get current port (0 if not running)
-server.isRunning                // Check if server is running
+// Start listening on a port. `completion` runs once `status` reaches `.running`.
+// On startup failure (invalid host, bind failure, etc.) the closure is not
+// invoked — inspect `status` to detect the error.
+server.listen(8080) { /* server is up */ }
+
+// Bind only to loopback (recommended for OAuth callbacks, IPC, dev tooling).
+server.listen(8080, host: "localhost") { /* loopback only */ }
+
+server.close()                          // Stop the server
+server.status                           // ServerStatus: .stopped, .starting, .running(port), .error(message)
+server.currentPort                      // UInt — current port (0 if not running)
+server.isRunning                        // Bool — convenience for `status == .running`
+server.registeredRoutes                 // [String] — registered route patterns
+server.staticDirectoriesServed          // [String] — registered static dirs
 ```
 
 #### Middleware
+
 ```swift
-server.use(middleware)                    // Add middleware
-server.use(staticDirectory: "./public")   // Serve static files
+server.use(middleware)                    // Add global middleware
+server.use("/api", middleware)            // Path-scoped middleware
+server.use(.post, "/api", middleware)     // Method+path-scoped middleware
+server.use(staticDirectory: "./public")   // Serve static files from directory
 ```
 
 #### Route Definition
+
 ```swift
-server.get(pattern, handler)      // GET route
-server.post(pattern, handler)     // POST route
-server.put(pattern, handler)      // PUT route
-server.delete(pattern, handler)   // DELETE route
+server.get(pattern, completion: handler)        // GET route
+server.post(pattern, completion: handler)       // POST route
+server.put(pattern, completion: handler)        // PUT route
+server.delete(pattern, completion: handler)     // DELETE route
+
+// With route-specific middleware (variadic):
+server.get(pattern, authMiddleware, loggingMiddleware) { req, res in /* … */ }
 ```
 
 ### Request Object
@@ -531,102 +576,89 @@ Here's a comprehensive example showing a REST API with authentication, logging, 
 ```swift
 import SwiftWebServer
 
-let server = SwiftWebServer()
+@MainActor
+func runServer() {
+    let server = SwiftWebServer()
 
-// Add middleware in order
-server.use(LoggerMiddleware(options: LoggerOptions(level: .detailed)))
-server.use(CORSMiddleware())
-server.use(CookieMiddleware())
-server.use(BodyParser())
-server.use(ETagMiddleware())
+    // Add middleware in order
+    server.use(LoggerMiddleware(options: LoggerOptions(level: .detailed)))
+    server.use(CORSMiddleware())
+    server.use(CookieMiddleware())
+    server.use(BodyParser())
+    server.use(ETagMiddleware())
 
-// Authentication middleware for protected routes
-let authMiddleware = BearerTokenMiddleware(options: BearerTokenOptions(
-    validator: { token in
-        // Validate token against your auth system
-        return validateJWT(token) || validateDatabaseToken(token)
-    }
-))
-
-// Public routes
-server.get("/") { req, res in
-    res.html("""
-    <h1>Welcome to SwiftWebServer</h1>
-    <p>A lightweight HTTP server for Swift</p>
-    """)
-}
-
-server.get("/api/status") { req, res in
-    res.sendWithETag("""
-    {
-        "status": "healthy",
-        "timestamp": "\(Date().iso8601Formatted())",
-        "version": "1.0.0"
-    }
-    """, contentType: .applicationJson)
-}
-
-// Protected routes
-server.get("/api/users", middleware: [authMiddleware]) { req, res in
-    let page = Int(req.queryParameters["page"] ?? "1") ?? 1
-    let limit = Int(req.queryParameters["limit"] ?? "10") ?? 10
-
-    res.json("""
-    {
-        "users": [],
-        "pagination": {
-            "page": \(page),
-            "limit": \(limit),
-            "total": 0
+    // Authentication middleware for protected routes
+    let authMiddleware = BearerTokenMiddleware(options: BearerTokenOptions(
+        validator: { token in
+            // Validate token against your auth system
+            return validateJWT(token) || validateDatabaseToken(token)
         }
-    }
-    """)
-}
+    ))
 
-server.post("/api/users", middleware: [authMiddleware]) { req, res in
-    guard let jsonBody = req.jsonBody,
-          let userData = jsonBody as? [String: Any],
-          let name = userData["name"] as? String else {
-        res.status(.badRequest).json("""{"error": "Invalid user data"}""")
-        return
+    // Public routes
+    server.get("/") { req, res in
+        res.html("""
+        <h1>Welcome to SwiftWebServer</h1>
+        <p>A lightweight HTTP server for Swift</p>
+        """)
     }
 
-    // Create user logic here
-    let userId = UUID().uuidString
-
-    res.status(.created).json("""
-    {
-        "id": "\(userId)",
-        "name": "\(name)",
-        "created": "\(Date().iso8601Formatted())"
+    server.get("/api/status") { req, res in
+        res.sendWithETag("""
+        {
+            "status": "healthy",
+            "timestamp": "\(Date().iso8601Formatted())"
+        }
+        """, contentType: .applicationJson)
     }
-    """)
-}
 
-// Error handling
-server.get("/api/error") { req, res in
-    res.status(.internalServerError).json("""
-    {
-        "error": "Something went wrong",
-        "timestamp": "\(Date().iso8601Formatted())"
+    // Protected routes
+    server.get("/api/users", authMiddleware) { req, res in
+        let page = Int(req.queryParameters["page"] ?? "1") ?? 1
+        let limit = Int(req.queryParameters["limit"] ?? "10") ?? 10
+
+        res.json("""
+        {
+            "users": [],
+            "pagination": {
+                "page": \(page),
+                "limit": \(limit),
+                "total": 0
+            }
+        }
+        """)
     }
-    """)
-}
 
-// Serve static files
-server.use(staticDirectory: "./public")
+    server.post("/api/users", authMiddleware) { req, res in
+        guard let jsonBody = req.jsonBody,
+              let userData = jsonBody as? [String: Any],
+              let name = userData["name"] as? String else {
+            res.status(.badRequest).json("""{"error": "Invalid user data"}""")
+            return
+        }
 
-// Start server
-do {
-    try server.start(port: 8080)
-    print("🚀 Server running on http://localhost:8080")
-    print("📊 Status endpoint: http://localhost:8080/api/status")
-    print("🔒 Protected endpoint: http://localhost:8080/api/users (requires Bearer token)")
+        let userId = UUID().uuidString
+        res.status(.created).json("""
+        {
+            "id": "\(userId)",
+            "name": "\(name)",
+            "created": "\(Date().iso8601Formatted())"
+        }
+        """)
+    }
 
-    // Keep the server running
+    // Serve static files
+    server.use(staticDirectory: "./public")
+
+    // Start the server. The completion fires once it's accepting connections.
+    server.listen(8080) {
+        print("🚀 Server running on http://localhost:8080")
+        print("📊 Status endpoint: http://localhost:8080/api/status")
+        print("🔒 Protected endpoint: http://localhost:8080/api/users (Bearer token required)")
+    }
+
+    // Keep the run loop alive (e.g., in a CLI tool)
     RunLoop.current.run()
-} catch {
-    print("❌ Failed to start server: \(error)")
 }
 ```
 
@@ -678,32 +710,44 @@ The SwiftWebServerExample project demonstrates a comprehensive blog application 
 5. Use demo credentials: `johndoe` / `password123`
 6. Manage data through the native SwiftUI interface
 
+## Requirements
+
+The library and the SwiftUI example app have different minimum platforms:
+
+| | Library (`SwiftWebServer`) | SwiftUI example app |
+| --- | --- | --- |
+| iOS | 15.0+ | 17.0+ (uses SwiftData) |
+| macOS | 12.0+ | 14.0+ |
+| Swift | 5.10+ | 5.10+ |
+| Xcode | 15.0+ | 15.0+ |
+
+The library uses `nonisolated(unsafe)` (Swift 5.10) and
+`MainActor.assumeIsolated` (Swift 5.9) — older Swift toolchains cannot
+parse the source set.
+
 ### Development Setup
 
 1. Clone the repository
 2. Open in Xcode or use Swift Package Manager
-3. Run tests: `swift test`
-4. Build: `swift build`
+3. Build: `swift build`
+4. Run tests: `swift test`
 
-### Requirements
+## Release History
 
-- **iOS**: 17.0+ (for SwiftUI example app)
-- **macOS**: 14.0+ (for command-line usage)
-- **Xcode**: 15.0+
-- **Swift**: 5.9+
+Releases and detailed notes live on the
+[GitHub Releases page](https://github.com/atom2ueki/SwiftWebServer/releases).
 
-## Recent Updates
-
-### Version 1.0.0 Features
-
-- ✅ **Session Management**: Automatic JWT token cleanup and session tracking
-- ✅ **Enhanced Authentication**: Improved Bearer token middleware with detailed error responses
-- ✅ **SwiftUI Integration**: Native iOS dashboard with haptic feedback and real-time updates
-- ✅ **SwiftData Support**: Modern data persistence with automatic relationship management
-- ✅ **Responsive Design**: Mobile-first web interface with adaptive layouts
-- ✅ **Error Handling**: Comprehensive error responses with proper HTTP status codes
-- ✅ **Middleware Improvements**: Enhanced logging, CORS, and cookie handling
-- ✅ **HTTP Redirects**: Full support for temporary and permanent redirects
+- **0.3.1** — memory-management fixes: balance the CFSocket context
+  retain in `listen()` (#7), and break the `Connection` ↔
+  `SwiftWebServer` retain cycle so servers deinit once the user drops
+  their reference (#6).
+- **0.3.0** — `@MainActor` isolation for `SwiftWebServer`, honest
+  `Sendable` conformance, deterministic preconditions on post-`listen()`
+  configuration mutation. Swift 5.10 minimum, iOS 15 / macOS 12.
+- **0.2.0** — optional `host:` parameter on `listen(_:host:completion:)`
+  for loopback-only binds (OAuth callbacks per RFC 8252 §7.3). Failed
+  startup no longer leaks `CFSocket`s. Source-compatible with 0.1.0.
+- **0.1.0** — initial release.
 
 ## Testing
 
@@ -722,7 +766,7 @@ swift test --verbose
 
 ### Test Coverage
 
-- ✅ **Core Server**: Server lifecycle, routing, and request handling
+- ✅ **Core Server**: Server lifecycle, routing, request handling, retain-cycle and CFSocket regression tests
 - ✅ **Middleware**: All built-in middleware components
 - ✅ **HTTP Methods**: GET, POST, PUT, DELETE, and other HTTP methods
 - ✅ **Path Parameters**: Route matching and parameter extraction

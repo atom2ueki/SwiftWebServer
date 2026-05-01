@@ -33,9 +33,9 @@ final class ConnectionRetainCycleTests: XCTestCase {
             // without performing real I/O. We're testing the object graph,
             // not socket behavior.
             connection = Connection(nativeSocketHandle: -1, server: server)
-            // Drop the static-dict entry so it doesn't pin the server
-            // transitively — the cycle under test is Connection.server,
-            // not the dictionary itself.
+            // Ensure the static dict is empty so it can't pin the server
+            // transitively if a prior test left state behind — the cycle
+            // under test is Connection.server, not the dictionary itself.
             SwiftWebServer.connections = [:]
         }
 

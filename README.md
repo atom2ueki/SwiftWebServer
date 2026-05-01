@@ -41,7 +41,7 @@ dependencies: [
 import SwiftWebServer
 
 @MainActor
-func startServer() {
+func startServer() -> SwiftWebServer {
     let server = SwiftWebServer()
 
     // Add middleware
@@ -67,6 +67,11 @@ func startServer() {
     server.listen(8080) {
         print("Server running on http://localhost:8080")
     }
+
+    // Return the server so the caller can keep a reference and call
+    // `server.close()` later — otherwise the listener stays bound until
+    // process exit.
+    return server
 }
 ```
 
@@ -74,6 +79,9 @@ func startServer() {
 > from the main actor (which has its own run loop). All route registration
 > and middleware/static-directory configuration must happen *before*
 > `listen(_:)` — calling them on a running server traps with a clear message.
+> Hold on to the returned `SwiftWebServer` instance for as long as you need
+> the listener up; in app code, store it on an `@MainActor`-isolated owner
+> (a model object, view-model, or app delegate property).
 
 #### Loopback-only bind
 

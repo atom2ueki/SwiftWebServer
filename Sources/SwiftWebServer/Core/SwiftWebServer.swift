@@ -153,17 +153,19 @@ final public class SwiftWebServer {
     ///     - `"0.0.0.0"` — IPv4 all interfaces only.
     ///     - `"::"` — IPv6 all interfaces only.
     ///     - Any other IPv4 or IPv6 literal — single-family bind on that address.
-    ///   - completion: Called once the listener has finished its setup
-    ///     attempt. Inspect ``status`` to determine whether it succeeded.
+    ///   - completion: Called only after the listener has successfully reached
+    ///     ``status`` `.running`. On any setup failure (invalid host, socket
+    ///     creation failure, bind failure) the function returns without
+    ///     invoking the closure; inspect ``status`` to detect that case.
     ///
     /// - Note: Hostnames other than `"localhost"` are not resolved; pass
     ///   IP literals.
     public func listen(_ port: UInt, host: String? = nil, completion: () -> Void) {
-        // Update status to starting
         _status = .starting
-        _currentPort = port
 
         // Resolve the requested bind into one or both address families.
+        // We do this before touching `_currentPort` so an invalid host
+        // doesn't leave a stale port in `currentPort` while `status` is `.error`.
         let bind: BindRequest
         do {
             bind = try BindRequest.resolve(host: host)
@@ -201,7 +203,7 @@ final public class SwiftWebServer {
                                           &context)
 
             guard ipv4cfsocket != nil else {
-                _status = .error("Failed to create IPv4 socket")
+                failStartup("Failed to create IPv4 socket")
                 return
             }
         }
@@ -219,10 +221,15 @@ final public class SwiftWebServer {
                                           },
                                           &context)
 
-            // IPv6 socket creation failure is not critical when IPv4 is also requested
-            if ipv6cfsocket == nil && ipv4cfsocket == nil {
-                _status = .error("Failed to create IPv6 socket")
-                return
+            // IPv6 socket creation failure is fatal whenever the caller
+            // explicitly asked for IPv6. The only path where we forgive it
+            // is the legacy `host == nil` dual-stack ANY case, where IPv4
+            // alone is acceptable on IPv6-disabled hosts.
+            if ipv6cfsocket == nil {
+                if bind.ipv6Required || ipv4cfsocket == nil {
+                    failStartup("Failed to create IPv6 socket")
+                    return
+                }
             }
         }
 
@@ -251,7 +258,7 @@ final public class SwiftWebServer {
             let ipv4bindResult = CFSocketSetAddress(ipv4cfsocket, ipv4data as CFData)
             if ipv4bindResult != CFSocketError.success {
                 print("ipv4 bind error: \(ipv4bindResult)")
-                _status = .error("Failed to bind IPv4 socket on port \(port)")
+                failStartup("Failed to bind IPv4 socket on port \(port)")
                 return
             }
         }
@@ -271,15 +278,17 @@ final public class SwiftWebServer {
             let ipv6bindResult = CFSocketSetAddress(ipv6cfsocket, ipv6data as CFData)
             if ipv6bindResult != CFSocketError.success {
                 print("ipv6 bind error: \(ipv6bindResult)")
-                // IPv6 binding failure is non-critical only if we also have an IPv4 socket
-                if ipv4cfsocket != nil {
-                    print("Continuing with IPv4 only")
-                    CFSocketInvalidate(ipv6cfsocket)
-                    ipv6cfsocket = nil
-                } else {
-                    _status = .error("Failed to bind IPv6 socket on port \(port)")
+                // IPv6 bind failure is fatal whenever the caller explicitly
+                // asked for it. Only the legacy `host == nil` path can
+                // silently fall back to IPv4-only, since that path's contract
+                // never promised dual-stack.
+                if bind.ipv6Required || ipv4cfsocket == nil {
+                    failStartup("Failed to bind IPv6 socket on port \(port)")
                     return
                 }
+                print("Continuing with IPv4 only")
+                CFSocketInvalidate(ipv6cfsocket)
+                ipv6cfsocket = nil
             }
         }
 
@@ -294,11 +303,38 @@ final public class SwiftWebServer {
             CFRunLoopAddSource(CFRunLoopGetCurrent(), socketsource6, CFRunLoopMode.defaultMode)
         }
 
-        // Update status to running
+        // Now that the bind succeeded, publish the running port. Setting
+        // this earlier would leak a stale port if any prior step had failed.
+        _currentPort = port
         _status = .running(port: port)
 
         // callback
         completion()
+    }
+
+    /// Set `_status = .error(message)` and tear down any partially-built
+    /// listener resources so a failed `listen()` doesn't leak sockets or
+    /// run-loop sources. Also resets `_currentPort` so callers honoring
+    /// the doc contract ("0 if not running") see a consistent value.
+    private func failStartup(_ message: String) {
+        if let source4 = socketsource4 {
+            CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source4, CFRunLoopMode.defaultMode)
+            socketsource4 = nil
+        }
+        if let source6 = socketsource6 {
+            CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source6, CFRunLoopMode.defaultMode)
+            socketsource6 = nil
+        }
+        if ipv4cfsocket != nil {
+            CFSocketInvalidate(ipv4cfsocket)
+            ipv4cfsocket = nil
+        }
+        if ipv6cfsocket != nil {
+            CFSocketInvalidate(ipv6cfsocket)
+            ipv6cfsocket = nil
+        }
+        _currentPort = 0
+        _status = .error(message)
     }
 
     public func close() {

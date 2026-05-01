@@ -10,6 +10,7 @@ import XCTest
 import Foundation
 @testable import SwiftWebServer
 
+@MainActor
 final class BindRequestTests: XCTestCase {
 
     func testNilHostPreservesDualStackAnyBehavior() throws {

@@ -1,6 +1,7 @@
 import XCTest
 @testable import SwiftWebServer
 
+@MainActor
 final class MiddlewareTests: XCTestCase {
 
     // MARK: - Middleware Chain Tests
@@ -298,6 +299,7 @@ class ErrorMiddleware: Middleware {
     }
 }
 
+@MainActor
 class MockResponse: Response {
     init() {
         let mockServer = SwiftWebServer()

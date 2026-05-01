@@ -9,6 +9,7 @@
 import XCTest
 @testable import SwiftWebServer
 
+@MainActor
 class SwiftWebServerTests: XCTestCase {
 
     override func setUp() {

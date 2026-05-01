@@ -9,7 +9,7 @@ import Foundation
 
 class Connection {
     var nativeSocketHandle: Int32
-    var server: SwiftWebServer?
+    weak var server: SwiftWebServer?
 
     init(nativeSocketHandle: Int32, server: SwiftWebServer) {
         self.nativeSocketHandle = nativeSocketHandle

@@ -214,17 +214,28 @@ final public class SwiftWebServer {
             return
         }
 
-        // prepare reuse address
-        let intTrue: UInt32 = 1
-        let unsafeIntTrue = withUnsafePointer(to: intTrue) { truePointer in
-            return truePointer
-        }
-
-        var context = CFSocketContext(version: 0,
-                                      info: UnsafeMutableRawPointer(Unmanaged.passRetained(self).toOpaque()),
-                                      retain: nil,
-                                      release: nil,
-                                      copyDescription: nil)
+        // Pair `retain`/`release` callbacks with `passUnretained(self)` so each
+        // CFSocket independently balances its hold on `self`. The previous
+        // implementation used `passRetained(self)` with both callbacks `nil`,
+        // which leaked a +1 retain on every `listen()` (the IPv4 and IPv6
+        // sockets share one context, so the leak compounds). With these
+        // callbacks, `CFSocketCreate` retains via `retain`, `CFSocketInvalidate`
+        // releases via `release`, and `close()` deterministically deinits the
+        // server when the caller drops their last reference.
+        var context = CFSocketContext(
+            version: 0,
+            info: UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque()),
+            retain: { ptr in
+                guard let ptr else { return nil }
+                _ = Unmanaged<SwiftWebServer>.fromOpaque(ptr).retain()
+                return ptr
+            },
+            release: { ptr in
+                guard let ptr else { return }
+                Unmanaged<SwiftWebServer>.fromOpaque(ptr).release()
+            },
+            copyDescription: nil
+        )
 
         // create ipv4 socket (only if requested)
         if bind.ipv4 != nil {
@@ -282,14 +293,18 @@ final public class SwiftWebServer {
             }
         }
 
-        // set reuse address for ipv4
-        if ipv4cfsocket != nil {
-            setsockopt(CFSocketGetNative(ipv4cfsocket), SOL_SOCKET, SO_REUSEADDR, unsafeIntTrue, socklen_t(MemoryLayout<UInt32>.size))
-        }
-
-        // set reuse address for ipv6 (only if socket exists)
-        if ipv6cfsocket != nil {
-            setsockopt(CFSocketGetNative(ipv6cfsocket), SOL_SOCKET, SO_REUSEADDR, unsafeIntTrue, socklen_t(MemoryLayout<UInt32>.size))
+        // Set SO_REUSEADDR on whichever sockets we created. The pointer must
+        // not escape the `withUnsafePointer` closure, so the setsockopt calls
+        // run inside it.
+        var intTrue: UInt32 = 1
+        withUnsafePointer(to: &intTrue) { ptr in
+            let optlen = socklen_t(MemoryLayout<UInt32>.size)
+            if ipv4cfsocket != nil {
+                setsockopt(CFSocketGetNative(ipv4cfsocket), SOL_SOCKET, SO_REUSEADDR, ptr, optlen)
+            }
+            if ipv6cfsocket != nil {
+                setsockopt(CFSocketGetNative(ipv6cfsocket), SOL_SOCKET, SO_REUSEADDR, ptr, optlen)
+            }
         }
 
         // bind ipv4 socket

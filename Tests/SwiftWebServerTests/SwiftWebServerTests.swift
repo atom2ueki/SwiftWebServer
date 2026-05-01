@@ -59,31 +59,46 @@ class SwiftWebServerTests: XCTestCase {
 
     /// Regression test for issue #7: every successful `listen()` used to leak a
     /// `passRetained(self)` against the CFSocket context, keeping the server
-    /// alive indefinitely. Bind to an ephemeral loopback port, close the
-    /// server, drop the strong reference, and assert the weak reference goes
-    /// nil. The CFSocket context release callback runs through CF, so we spin
-    /// the run loop briefly to give it a chance to fire before checking.
-    func testServerDeinitsAfterCloseDoesNotLeak() {
+    /// alive indefinitely. Bind to an ephemeral port, close the server, drop
+    /// the strong reference, and assert the weak reference goes nil. The
+    /// CFSocket context release callback can run on the next run-loop turn,
+    /// so we spin briefly to give it a chance to fire before checking.
+    private func assertServerDeinitsAfterClose(host: String?, file: StaticString = #filePath, line: UInt = #line) {
         weak var weakServer: SwiftWebServer?
 
         autoreleasepool {
             let server = SwiftWebServer()
             weakServer = server
-            // Port 0 lets the kernel pick a free port; loopback keeps the
-            // bind safe in CI sandboxes.
-            server.listen(0, host: "127.0.0.1") {}
+            // Port 0 lets the kernel pick a free ephemeral port.
+            server.listen(0, host: host) {}
             server.close()
         }
 
-        // CFSocket teardown can defer the context release callback to the
-        // next run-loop turn. Spin briefly so any pending release fires
-        // before we assert.
         let deadline = Date().addingTimeInterval(1.0)
         while weakServer != nil && Date() < deadline {
             RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
         }
 
-        XCTAssertNil(weakServer, "SwiftWebServer leaked after close() — CFSocket context retain was not balanced")
+        XCTAssertNil(
+            weakServer,
+            "SwiftWebServer leaked after close() (host=\(host ?? "nil")) — CFSocket context retain was not balanced",
+            file: file,
+            line: line
+        )
+    }
+
+    /// IPv4-only path: one CFSocket, one retain/release pair through the
+    /// shared context.
+    func testServerDeinitsAfterClose_IPv4Only() {
+        assertServerDeinitsAfterClose(host: "127.0.0.1")
+    }
+
+    /// Dual-stack path: two CFSockets share the same context, so the
+    /// `retain` / `release` callbacks fire twice each. Exercises the case
+    /// the original PR was most worried about (the leak compounds across
+    /// IPv4 + IPv6 sockets).
+    func testServerDeinitsAfterClose_DualStackLoopback() {
+        assertServerDeinitsAfterClose(host: "localhost")
     }
 
 }

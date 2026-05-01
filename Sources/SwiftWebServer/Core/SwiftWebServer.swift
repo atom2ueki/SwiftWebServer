@@ -160,6 +160,19 @@ final public class SwiftWebServer {
         return middlewareManager
     }
 
+    /// Asserts that configuration mutators (route registration, middleware,
+    /// static directories) are called before `listen()`. The state they touch
+    /// is annotated `nonisolated(unsafe)` because `Connection` reads it from
+    /// a background queue during request handling — mutating after `listen()`
+    /// is undefined behavior. This precondition turns "undefined" into a
+    /// clean crash with a clear message.
+    fileprivate func assertNotRunning(_ method: StaticString = #function) {
+        precondition(
+            !isRunning,
+            "SwiftWebServer.\(method) must be called before listen() — configuration is read-only after the server starts."
+        )
+    }
+
     /// Start listening on `port`, optionally constrained to a specific bind address.
     ///
     /// - Parameters:
@@ -246,6 +259,10 @@ final public class SwiftWebServer {
                                           IPPROTO_TCP,
                                           CFSocketCallBackType.acceptCallBack.rawValue,
                                           { (socket, _, address, data, info) in
+                                            // Same as the IPv4 callback above: this fires on the run loop
+                                            // the source was added to, which `listen()` requires to be
+                                            // the main run loop. Assert that isolation so we can call
+                                            // into the @MainActor-isolated `handleConnect`.
                                             MainActor.assumeIsolated {
                                                 let swiftWebServer = Unmanaged<SwiftWebServer>.fromOpaque(info!).takeUnretainedValue()
                                                 swiftWebServer.handleConnect(socket: socket!, address: address!, data: data!)
@@ -418,6 +435,7 @@ public extension SwiftWebServer {
     /// Usage: server.use(LoggerMiddleware())
     @discardableResult
     func use(_ middleware: Middleware) -> SwiftWebServer {
+        assertNotRunning()
         middlewareManager.addGlobal(middleware)
         return self
     }
@@ -426,6 +444,7 @@ public extension SwiftWebServer {
     /// Usage: server.use("/api", AuthMiddleware())
     @discardableResult
     func use(_ path: String, _ middleware: Middleware) -> SwiftWebServer {
+        assertNotRunning()
         let routeMiddleware = RouteMiddleware(middleware: middleware, path: path)
         middlewareManager.addRoute(routeMiddleware)
         return self
@@ -435,6 +454,7 @@ public extension SwiftWebServer {
     /// Usage: server.use(.post, "/api/secure", AuthMiddleware())
     @discardableResult
     func use(_ method: HTTPMethod, _ path: String, _ middleware: Middleware) -> SwiftWebServer {
+        assertNotRunning()
         let routeMiddleware = RouteMiddleware(middleware: middleware, path: path, method: method)
         middlewareManager.addRoute(routeMiddleware)
         return self
@@ -450,6 +470,7 @@ public extension SwiftWebServer {
         return "\(method.rawValue) \(path)"
     }
     func get(_ path: String, completion: @escaping (Request, Response) -> Void) {
+        assertNotRunning()
         // Add to new router system (supports path parameters)
         router.get(path, handler: completion)
 
@@ -471,6 +492,7 @@ public extension SwiftWebServer {
     }
 
     func post(_ path: String, completion: @escaping (Request, Response) -> Void) {
+        assertNotRunning()
         // Add to new router system (supports path parameters)
         router.post(path, handler: completion)
 
@@ -492,6 +514,7 @@ public extension SwiftWebServer {
     }
 
     func put(_ path: String, completion: @escaping (Request, Response) -> Void) {
+        assertNotRunning()
         // Add to new router system (supports path parameters)
         router.put(path, handler: completion)
 
@@ -513,6 +536,7 @@ public extension SwiftWebServer {
     }
 
     func delete(_ path: String, completion: @escaping (Request, Response) -> Void) {
+        assertNotRunning()
         // Add to new router system (supports path parameters)
         router.delete(path, handler: completion)
 
@@ -540,6 +564,7 @@ extension SwiftWebServer {
     /// Add a directory to serve static files from
     /// Enables serving static files from the specified directory
     public func use(staticDirectory: String) {
+        assertNotRunning()
         let absolutePath = URL(fileURLWithPath: staticDirectory).path
         if !staticDirectories.contains(absolutePath) {
             staticDirectories.append(absolutePath)

@@ -299,8 +299,8 @@ class ErrorMiddleware: Middleware {
     }
 }
 
+@MainActor
 class MockResponse: Response {
-    @MainActor
     init() {
         let mockServer = SwiftWebServer()
         let mockConnection = MockConnection(server: mockServer)

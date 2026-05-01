@@ -57,4 +57,33 @@ class SwiftWebServerTests: XCTestCase {
         XCTAssertNotNil(server.routeHandlers?["POST /submit"], "POST /submit route should be registered")
     }
 
+    /// Regression test for issue #7: every successful `listen()` used to leak a
+    /// `passRetained(self)` against the CFSocket context, keeping the server
+    /// alive indefinitely. Bind to an ephemeral loopback port, close the
+    /// server, drop the strong reference, and assert the weak reference goes
+    /// nil. The CFSocket context release callback runs through CF, so we spin
+    /// the run loop briefly to give it a chance to fire before checking.
+    func testServerDeinitsAfterCloseDoesNotLeak() {
+        weak var weakServer: SwiftWebServer?
+
+        autoreleasepool {
+            let server = SwiftWebServer()
+            weakServer = server
+            // Port 0 lets the kernel pick a free port; loopback keeps the
+            // bind safe in CI sandboxes.
+            server.listen(0, host: "127.0.0.1") {}
+            server.close()
+        }
+
+        // CFSocket teardown can defer the context release callback to the
+        // next run-loop turn. Spin briefly so any pending release fires
+        // before we assert.
+        let deadline = Date().addingTimeInterval(1.0)
+        while weakServer != nil && Date() < deadline {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+        }
+
+        XCTAssertNil(weakServer, "SwiftWebServer leaked after close() — CFSocket context retain was not balanced")
+    }
+
 }

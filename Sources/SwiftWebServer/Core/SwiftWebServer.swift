@@ -220,11 +220,28 @@ final public class SwiftWebServer {
             return truePointer
         }
 
-        var context = CFSocketContext(version: 0,
-                                      info: UnsafeMutableRawPointer(Unmanaged.passRetained(self).toOpaque()),
-                                      retain: nil,
-                                      release: nil,
-                                      copyDescription: nil)
+        // Pair `retain`/`release` callbacks with `passUnretained(self)` so each
+        // CFSocket independently balances its hold on `self`. The previous
+        // implementation used `passRetained(self)` with both callbacks `nil`,
+        // which leaked a +1 retain on every `listen()` (the IPv4 and IPv6
+        // sockets share one context, so the leak compounds). With these
+        // callbacks, `CFSocketCreate` retains via `retain`, `CFSocketInvalidate`
+        // releases via `release`, and `close()` deterministically deinits the
+        // server when the caller drops their last reference.
+        var context = CFSocketContext(
+            version: 0,
+            info: UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque()),
+            retain: { ptr in
+                guard let ptr else { return nil }
+                _ = Unmanaged<SwiftWebServer>.fromOpaque(ptr).retain()
+                return ptr
+            },
+            release: { ptr in
+                guard let ptr else { return }
+                Unmanaged<SwiftWebServer>.fromOpaque(ptr).release()
+            },
+            copyDescription: nil
+        )
 
         // create ipv4 socket (only if requested)
         if bind.ipv4 != nil {

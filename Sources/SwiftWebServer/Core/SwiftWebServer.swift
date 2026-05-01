@@ -481,6 +481,9 @@ public extension SwiftWebServer {
 
     /// GET route with middleware
     func get(_ path: String, _ middleware: Middleware..., handler: @escaping (Request, Response) -> Void) {
+        // Trap before mutating the middleware manager — the base method's
+        // precondition fires after the middleware insertions otherwise.
+        assertNotRunning()
         // Add route-specific middleware
         for mw in middleware {
             let routeMiddleware = RouteMiddleware(middleware: mw, path: path, method: .get)
@@ -503,6 +506,7 @@ public extension SwiftWebServer {
 
     /// POST route with middleware
     func post(_ path: String, _ middleware: Middleware..., handler: @escaping (Request, Response) -> Void) {
+        assertNotRunning()
         // Add route-specific middleware
         for mw in middleware {
             let routeMiddleware = RouteMiddleware(middleware: mw, path: path, method: .post)
@@ -525,6 +529,7 @@ public extension SwiftWebServer {
 
     /// PUT route with middleware
     func put(_ path: String, _ middleware: Middleware..., handler: @escaping (Request, Response) -> Void) {
+        assertNotRunning()
         // Add route-specific middleware
         for mw in middleware {
             let routeMiddleware = RouteMiddleware(middleware: mw, path: path, method: .put)
@@ -547,6 +552,7 @@ public extension SwiftWebServer {
 
     /// DELETE route with middleware
     func delete(_ path: String, _ middleware: Middleware..., handler: @escaping (Request, Response) -> Void) {
+        assertNotRunning()
         // Add route-specific middleware
         for mw in middleware {
             let routeMiddleware = RouteMiddleware(middleware: mw, path: path, method: .delete)

@@ -28,6 +28,22 @@ public enum ServerStatus {
 /// - Built-in support for common HTTP methods
 /// - Configurable CORS, logging, authentication, and more
 ///
+/// ## Concurrency
+///
+/// `SwiftWebServer` is `@MainActor`-isolated, which makes it conformant to
+/// `Sendable` automatically and matches what the runtime already requires:
+/// the listener installs its `CFSocket` accept callbacks on the *current*
+/// `CFRunLoop`, so `listen()` and `close()` must be invoked from a thread
+/// that's actively running its run loop (in practice: the main thread on
+/// iOS/macOS apps).
+///
+/// Per-request work — reading the request body, running middleware, dispatching
+/// to a route handler, writing the response — runs on a background dispatch
+/// queue inside `Connection`. The configuration state that the request path
+/// reads (routes, middleware, static directories) is annotated
+/// `nonisolated(unsafe)` because it is configured once before `listen()` and
+/// then treated as read-only. Mutating it after `listen()` is undefined.
+///
 /// Example usage:
 /// ```swift
 /// let server = SwiftWebServer()
@@ -44,26 +60,33 @@ public enum ServerStatus {
 /// // Start server
 /// try server.start(port: 8080)
 /// ```
+@MainActor
 final public class SwiftWebServer {
     // completion arrays (kept for backward compatibility)
     typealias RouteHandler = (Request, Response) -> Void
-    var routeHandlers: [String: RouteHandler]?
+    // Configuration state read by per-request `Connection` work that lives
+    // on a background queue. Mutate only during configuration (before
+    // `listen()`); reads are safe because the post-`listen()` state is
+    // effectively immutable.
+    nonisolated(unsafe) var routeHandlers: [String: RouteHandler]?
 
     // new router system
-    internal let router = Router()
+    nonisolated(unsafe) internal let router = Router()
 
     // middleware system
-    private let middlewareManager = MiddlewareManager()
+    nonisolated(unsafe) private let middlewareManager = MiddlewareManager()
 
     // static file serving
-    private var staticDirectories: [String] = []
+    nonisolated(unsafe) private var staticDirectories: [String] = []
 
     // server status
     private var _status: ServerStatus = .stopped
     private var _currentPort: UInt = 0
 
-    // store connections
-    static var connections = [CFData: Connection]()
+    // store connections — owned by the listener accept callback and the
+    // Connection's own teardown on the bg queue. The dispatch hop from
+    // `Connection.disconnect()` already serializes mutation to main.
+    nonisolated(unsafe) static var connections = [CFData: Connection]()
 
     var ipv4cfsocket: CFSocket!
     var ipv6cfsocket: CFSocket!
@@ -131,8 +154,9 @@ final public class SwiftWebServer {
         return staticDirectories
     }
 
-    /// Internal access to middleware manager for Connection class
-    internal var middlewareManagerInternal: MiddlewareManager {
+    /// Internal access to middleware manager for Connection class.
+    /// Read by `Connection` from a background queue during request handling.
+    nonisolated internal var middlewareManagerInternal: MiddlewareManager {
         return middlewareManager
     }
 
@@ -197,8 +221,14 @@ final public class SwiftWebServer {
                                           IPPROTO_TCP,
                                           CFSocketCallBackType.acceptCallBack.rawValue,
                                           { (socket, _, address, data, info) in
-                                            let swiftWebServer = Unmanaged<SwiftWebServer>.fromOpaque(info!).takeUnretainedValue()
-                                            swiftWebServer.handleConnect(socket: socket!, address: address!, data: data!)
+                                            // CFSocket accept callbacks fire on the run loop the source
+                                            // was added to, which `listen()` requires to be the main run
+                                            // loop. Assert that isolation so we can call into the
+                                            // @MainActor-isolated `handleConnect`.
+                                            MainActor.assumeIsolated {
+                                                let swiftWebServer = Unmanaged<SwiftWebServer>.fromOpaque(info!).takeUnretainedValue()
+                                                swiftWebServer.handleConnect(socket: socket!, address: address!, data: data!)
+                                            }
                                           },
                                           &context)
 
@@ -216,8 +246,10 @@ final public class SwiftWebServer {
                                           IPPROTO_TCP,
                                           CFSocketCallBackType.acceptCallBack.rawValue,
                                           { (socket, _, address, data, info) in
-                                            let swiftWebServer = Unmanaged<SwiftWebServer>.fromOpaque(info!).takeUnretainedValue()
-                                            swiftWebServer.handleConnect(socket: socket!, address: address!, data: data!)
+                                            MainActor.assumeIsolated {
+                                                let swiftWebServer = Unmanaged<SwiftWebServer>.fromOpaque(info!).takeUnretainedValue()
+                                                swiftWebServer.handleConnect(socket: socket!, address: address!, data: data!)
+                                            }
                                           },
                                           &context)
 
@@ -514,8 +546,11 @@ extension SwiftWebServer {
         }
     }
 
-    /// Check if a file exists in any of the static directories
-    internal func findStaticFile(for path: String) -> String? {
+    /// Check if a file exists in any of the static directories.
+    /// Called from `Connection`'s background-queue request path; the
+    /// `staticDirectories` array is annotated `nonisolated(unsafe)` and is
+    /// expected to be configured before `listen()`.
+    nonisolated internal func findStaticFile(for path: String) -> String? {
         // Remove leading slash if present
         let cleanPath = path.hasPrefix("/") ? String(path.dropFirst()) : path
 

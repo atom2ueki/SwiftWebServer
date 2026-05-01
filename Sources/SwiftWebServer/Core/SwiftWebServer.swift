@@ -58,7 +58,9 @@ public enum ServerStatus {
 /// }
 ///
 /// // Start server
-/// try server.start(port: 8080)
+/// server.listen(8080) {
+///     print("Server running on http://localhost:8080")
+/// }
 /// ```
 @MainActor
 final public class SwiftWebServer {
@@ -96,7 +98,7 @@ final public class SwiftWebServer {
     /// Initialize a new SwiftWebServer instance
     ///
     /// Creates a new server instance ready to accept route definitions and middleware.
-    /// The server is not started until `start()` or `listen()` is called.
+    /// The server is not started until `listen(_:host:completion:)` is called.
     public init() {
         routeHandlers = [String: RouteHandler]()
     }
@@ -104,7 +106,7 @@ final public class SwiftWebServer {
     /// Initialize server with a default port (for convenience)
     ///
     /// - Parameter port: The port number to use when starting the server
-    /// - Note: The port is not used until `start()` or `listen()` is called
+    /// - Note: The port is not used until `listen(_:host:completion:)` is called
     public convenience init(port: UInt) {
         self.init()
     }

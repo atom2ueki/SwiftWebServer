@@ -466,7 +466,7 @@ server.listen(8080, host: "localhost") { /* loopback only */ }
 server.close()                          // Stop the server
 server.status                           // ServerStatus: .stopped, .starting, .running(port), .error(message)
 server.currentPort                      // UInt — current port (0 if not running)
-server.isRunning                        // Bool — convenience for `status == .running`
+server.isRunning                        // Bool — true when `status` matches the `.running(_)` case
 server.registeredRoutes                 // [String] — registered route patterns
 server.staticDirectoriesServed          // [String] — registered static dirs
 ```
@@ -727,7 +727,7 @@ The library and the SwiftUI example app have different minimum platforms:
 | iOS | 15.0+ | 17.0+ (uses SwiftData) |
 | macOS | 12.0+ | 14.0+ |
 | Swift | 5.10+ | 5.10+ |
-| Xcode | 15.0+ | 15.0+ |
+| Xcode | 15.3+ | 15.3+ |
 
 The library uses `nonisolated(unsafe)` (Swift 5.10) and
 `MainActor.assumeIsolated` (Swift 5.9) — older Swift toolchains cannot
@@ -746,9 +746,8 @@ Releases and detailed notes live on the
 [GitHub Releases page](https://github.com/atom2ueki/SwiftWebServer/releases).
 
 - **0.3.1** — memory-management fixes: balance the CFSocket context
-  retain in `listen()` (#7), and break the `Connection` ↔
-  `SwiftWebServer` retain cycle so servers deinit once the user drops
-  their reference (#6).
+  retain in `listen()`, and break the `Connection` ↔ `SwiftWebServer`
+  retain cycle so servers deinit once the user drops their reference.
 - **0.3.0** — `@MainActor` isolation for `SwiftWebServer`, honest
   `Sendable` conformance, deterministic preconditions on post-`listen()`
   configuration mutation. Swift 5.10 minimum, iOS 15 / macOS 12.

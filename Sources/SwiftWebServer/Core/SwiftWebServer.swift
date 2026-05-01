@@ -136,10 +136,44 @@ final public class SwiftWebServer {
         return middlewareManager
     }
 
-    public func listen(_ port: UInt, completion: () -> Void) {
+    /// Start listening on `port`, optionally constrained to a specific bind address.
+    ///
+    /// - Parameters:
+    ///   - port: TCP port to listen on.
+    ///   - host: Optional bind host. When `nil` (the default), the server binds
+    ///     both an IPv4 socket on `INADDR_ANY` and an IPv6 socket on
+    ///     `in6addr_any` — i.e. all interfaces, the original behavior. Pass a
+    ///     specific value to restrict the bind:
+    ///     - `"localhost"` — dual-stack loopback (`127.0.0.1` + `::1`). Use this
+    ///       for any flow that should be reachable only from the same machine
+    ///       (OAuth callbacks, IPC, dev tooling). Strongly recommended over
+    ///       `nil` whenever LAN reachability is not desired.
+    ///     - `"127.0.0.1"` — IPv4 loopback only.
+    ///     - `"::1"` — IPv6 loopback only.
+    ///     - `"0.0.0.0"` — IPv4 all interfaces only.
+    ///     - `"::"` — IPv6 all interfaces only.
+    ///     - Any other IPv4 or IPv6 literal — single-family bind on that address.
+    ///   - completion: Called once the listener has finished its setup
+    ///     attempt. Inspect ``status`` to determine whether it succeeded.
+    ///
+    /// - Note: Hostnames other than `"localhost"` are not resolved; pass
+    ///   IP literals.
+    public func listen(_ port: UInt, host: String? = nil, completion: () -> Void) {
         // Update status to starting
         _status = .starting
         _currentPort = port
+
+        // Resolve the requested bind into one or both address families.
+        let bind: BindRequest
+        do {
+            bind = try BindRequest.resolve(host: host)
+        } catch let error as BindResolveError {
+            _status = .error(error.message)
+            return
+        } catch {
+            _status = .error("Invalid bind host: \(error.localizedDescription)")
+            return
+        }
 
         // prepare reuse address
         let intTrue: UInt32 = 1
@@ -153,90 +187,107 @@ final public class SwiftWebServer {
                                       release: nil,
                                       copyDescription: nil)
 
-        // create ipv4 socket
-        ipv4cfsocket = CFSocketCreate(kCFAllocatorDefault,
-                                      PF_INET,
-                                      SOCK_STREAM,
-                                      IPPROTO_TCP,
-                                      CFSocketCallBackType.acceptCallBack.rawValue,
-                                      { (socket, _, address, data, info) in
-                                        let swiftWebServer = Unmanaged<SwiftWebServer>.fromOpaque(info!).takeUnretainedValue()
-                                        swiftWebServer.handleConnect(socket: socket!, address: address!, data: data!)
-                                      },
-                                      &context)
+        // create ipv4 socket (only if requested)
+        if bind.ipv4 != nil {
+            ipv4cfsocket = CFSocketCreate(kCFAllocatorDefault,
+                                          PF_INET,
+                                          SOCK_STREAM,
+                                          IPPROTO_TCP,
+                                          CFSocketCallBackType.acceptCallBack.rawValue,
+                                          { (socket, _, address, data, info) in
+                                            let swiftWebServer = Unmanaged<SwiftWebServer>.fromOpaque(info!).takeUnretainedValue()
+                                            swiftWebServer.handleConnect(socket: socket!, address: address!, data: data!)
+                                          },
+                                          &context)
 
-        guard ipv4cfsocket != nil else {
-            _status = .error("Failed to create IPv4 socket")
-            return
+            guard ipv4cfsocket != nil else {
+                _status = .error("Failed to create IPv4 socket")
+                return
+            }
         }
 
-        // create ipv6 socket
-        ipv6cfsocket = CFSocketCreate(kCFAllocatorDefault,
-                                      PF_INET6,
-                                      SOCK_STREAM,
-                                      IPPROTO_TCP,
-                                      CFSocketCallBackType.acceptCallBack.rawValue,
-                                      { (socket, _, address, data, info) in
-                                        let swiftWebServer = Unmanaged<SwiftWebServer>.fromOpaque(info!).takeUnretainedValue()
-                                        swiftWebServer.handleConnect(socket: socket!, address: address!, data: data!)
-                                      },
-                                      &context)
+        // create ipv6 socket (only if requested)
+        if bind.ipv6 != nil {
+            ipv6cfsocket = CFSocketCreate(kCFAllocatorDefault,
+                                          PF_INET6,
+                                          SOCK_STREAM,
+                                          IPPROTO_TCP,
+                                          CFSocketCallBackType.acceptCallBack.rawValue,
+                                          { (socket, _, address, data, info) in
+                                            let swiftWebServer = Unmanaged<SwiftWebServer>.fromOpaque(info!).takeUnretainedValue()
+                                            swiftWebServer.handleConnect(socket: socket!, address: address!, data: data!)
+                                          },
+                                          &context)
 
-        // IPv6 socket creation failure is not critical
+            // IPv6 socket creation failure is not critical when IPv4 is also requested
+            if ipv6cfsocket == nil && ipv4cfsocket == nil {
+                _status = .error("Failed to create IPv6 socket")
+                return
+            }
+        }
 
         // set reuse address for ipv4
-        setsockopt(CFSocketGetNative(ipv4cfsocket), SOL_SOCKET, SO_REUSEADDR, unsafeIntTrue, socklen_t(MemoryLayout<UInt32>.size))
+        if ipv4cfsocket != nil {
+            setsockopt(CFSocketGetNative(ipv4cfsocket), SOL_SOCKET, SO_REUSEADDR, unsafeIntTrue, socklen_t(MemoryLayout<UInt32>.size))
+        }
 
         // set reuse address for ipv6 (only if socket exists)
         if ipv6cfsocket != nil {
             setsockopt(CFSocketGetNative(ipv6cfsocket), SOL_SOCKET, SO_REUSEADDR, unsafeIntTrue, socklen_t(MemoryLayout<UInt32>.size))
         }
 
-        // create ipv4 address
-        var ipv4addr = sockaddr_in()
-        ipv4addr.sin_family = sa_family_t(AF_INET)
-        ipv4addr.sin_port = in_port_t(port).bigEndian
-        ipv4addr.sin_addr.s_addr = INADDR_ANY
-        let ipv4data = withUnsafePointer(to: &ipv4addr) {
-            $0.withMemoryRebound(to: UInt8.self, capacity: MemoryLayout<sockaddr_in>.size) {
-                Data(bytes: $0, count: MemoryLayout<sockaddr_in>.size)
-            }
-        }
-
-        // create ipv6 address
-        var ipv6addr = sockaddr_in6()
-        ipv6addr.sin6_family = sa_family_t(AF_INET6)
-        ipv6addr.sin6_port = in_port_t(port).bigEndian
-        ipv6addr.sin6_addr = in6addr_any
-        let ipv6data = withUnsafePointer(to: &ipv6addr) {
-            $0.withMemoryRebound(to: UInt8.self, capacity: MemoryLayout<sockaddr_in6>.size) {
-                Data(bytes: $0, count: MemoryLayout<sockaddr_in6>.size)
-            }
-        }
-
         // bind ipv4 socket
-        let ipv4bindResult = CFSocketSetAddress(ipv4cfsocket, ipv4data as CFData)
-        if ipv4bindResult != CFSocketError.success {
-            print("ipv4 bind error: \(ipv4bindResult)")
-            _status = .error("Failed to bind IPv4 socket on port \(port)")
-            return
+        if let ipv4Address = bind.ipv4, ipv4cfsocket != nil {
+            var ipv4addr = sockaddr_in()
+            ipv4addr.sin_family = sa_family_t(AF_INET)
+            ipv4addr.sin_port = in_port_t(port).bigEndian
+            ipv4addr.sin_addr = ipv4Address
+            let ipv4data = withUnsafePointer(to: &ipv4addr) {
+                $0.withMemoryRebound(to: UInt8.self, capacity: MemoryLayout<sockaddr_in>.size) {
+                    Data(bytes: $0, count: MemoryLayout<sockaddr_in>.size)
+                }
+            }
+
+            let ipv4bindResult = CFSocketSetAddress(ipv4cfsocket, ipv4data as CFData)
+            if ipv4bindResult != CFSocketError.success {
+                print("ipv4 bind error: \(ipv4bindResult)")
+                _status = .error("Failed to bind IPv4 socket on port \(port)")
+                return
+            }
         }
 
         // bind ipv6 socket (only if socket was created successfully)
-        if ipv6cfsocket != nil {
+        if let ipv6Address = bind.ipv6, ipv6cfsocket != nil {
+            var ipv6addr = sockaddr_in6()
+            ipv6addr.sin6_family = sa_family_t(AF_INET6)
+            ipv6addr.sin6_port = in_port_t(port).bigEndian
+            ipv6addr.sin6_addr = ipv6Address
+            let ipv6data = withUnsafePointer(to: &ipv6addr) {
+                $0.withMemoryRebound(to: UInt8.self, capacity: MemoryLayout<sockaddr_in6>.size) {
+                    Data(bytes: $0, count: MemoryLayout<sockaddr_in6>.size)
+                }
+            }
+
             let ipv6bindResult = CFSocketSetAddress(ipv6cfsocket, ipv6data as CFData)
             if ipv6bindResult != CFSocketError.success {
                 print("ipv6 bind error: \(ipv6bindResult)")
-                // IPv6 binding failure is not critical, continue with IPv4 only
-                print("Continuing with IPv4 only")
-                CFSocketInvalidate(ipv6cfsocket)
-                ipv6cfsocket = nil
+                // IPv6 binding failure is non-critical only if we also have an IPv4 socket
+                if ipv4cfsocket != nil {
+                    print("Continuing with IPv4 only")
+                    CFSocketInvalidate(ipv6cfsocket)
+                    ipv6cfsocket = nil
+                } else {
+                    _status = .error("Failed to bind IPv6 socket on port \(port)")
+                    return
+                }
             }
         }
 
         // listening on a socket by adding the socket to a run loop.
-        socketsource4 = CFSocketCreateRunLoopSource(kCFAllocatorDefault, ipv4cfsocket, 0)
-        CFRunLoopAddSource(CFRunLoopGetCurrent(), socketsource4, CFRunLoopMode.defaultMode)
+        if ipv4cfsocket != nil {
+            socketsource4 = CFSocketCreateRunLoopSource(kCFAllocatorDefault, ipv4cfsocket, 0)
+            CFRunLoopAddSource(CFRunLoopGetCurrent(), socketsource4, CFRunLoopMode.defaultMode)
+        }
 
         if ipv6cfsocket != nil {
             socketsource6 = CFSocketCreateRunLoopSource(kCFAllocatorDefault, ipv6cfsocket, 0)

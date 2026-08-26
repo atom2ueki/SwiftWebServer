@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/jpsim/SourceKitten.git",
       "state" : {
-        "revision" : "6529c17fe80dd94843a3df7ed3e6a239790d5c91",
-        "version" : "0.37.3"
+        "revision" : "821fc0eaa7c07fc98df1e9d3d43371cace697644",
+        "version" : "0.38.0"
       }
     },
     {
@@ -60,8 +60,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/realm/SwiftLint",
       "state" : {
-        "revision" : "fd768ba9a0e8a4f96d550d98de6c4cf2af565cf1",
-        "version" : "0.65.0"
+        "revision" : "6aba03e3d8302b33f106e0f922210f35ca4b52cf",
+        "version" : "0.65.1"
       }
     },
     {
